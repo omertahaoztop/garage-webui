@@ -10,7 +10,7 @@ import { Bucket, Permissions } from "../types";
 export const useBucket = (id?: string | null) => {
   return useQuery({
     queryKey: ["bucket", id],
-    queryFn: () => api.get<Bucket>("/v2/GetBucketInfo", { params: { id } }),
+    queryFn: () => api.get<Bucket>("/v2/GetBucketInfo", { params: { id }, admin: true }),
     enabled: !!id,
   });
 };
@@ -21,6 +21,7 @@ export const useUpdateBucket = (id?: string | null) => {
       return api.post<any>("/v2/UpdateBucket", {
         params: { id },
         body: values,
+        admin: true,
       });
     },
   });
@@ -34,6 +35,7 @@ export const useAddAlias = (
     mutationFn: (alias: string) => {
       return api.post("/v2/AddBucketAlias", {
         body: { bucketId, globalAlias: alias },
+        admin: true,
       });
     },
     ...options,
@@ -48,6 +50,7 @@ export const useRemoveAlias = (
     mutationFn: (alias: string) => {
       return api.post("/v2/RemoveBucketAlias", {
         body: { bucketId, globalAlias: alias },
+        admin: true,
       });
     },
     ...options,
@@ -71,6 +74,7 @@ export const useAllowKey = (
             accessKeyId: key.keyId,
             permissions: key.permissions,
           },
+          admin: true,
         });
       });
       const result = await Promise.all(promises);
@@ -96,6 +100,7 @@ export const useDenyKey = (
           accessKeyId: payload.keyId,
           permissions: payload.permissions,
         },
+        admin: true,
       });
     },
     ...options,
@@ -106,7 +111,7 @@ export const useRemoveBucket = (
   options?: MutationOptions<any, Error, string>
 ) => {
   return useMutation({
-    mutationFn: (id) => api.post("/v2/DeleteBucket", { params: { id } }),
+    mutationFn: (id) => api.post("/v2/DeleteBucket", { params: { id }, admin: true }),
     ...options,
   });
 };

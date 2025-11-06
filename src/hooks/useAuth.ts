@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 type AuthResponse = {
   enabled: boolean;
   authenticated: boolean;
+  isAdmin?: boolean;
 };
 
 export const useAuth = () => {
@@ -16,5 +17,6 @@ export const useAuth = () => {
     isLoading,
     isEnabled: data?.enabled,
     isAuthenticated: data?.authenticated,
+    isAdmin: data?.isAdmin || false,
   };
 };

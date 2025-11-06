@@ -18,6 +18,7 @@ export const useNodeInfo = () => {
     queryFn: () =>
       api.get<GetNodeInfoResult>("/v2/GetNodeInfo", {
         params: { node: "self" },
+        admin: true,
       }),
     select: (data) => Object.values(data?.success || {})?.[0],
   });
@@ -26,14 +27,14 @@ export const useNodeInfo = () => {
 export const useClusterStatus = () => {
   return useQuery({
     queryKey: ["status"],
-    queryFn: () => api.get<GetStatusResult>("/v2/GetClusterStatus"),
+    queryFn: () => api.get<GetStatusResult>("/v2/GetClusterStatus", { admin: true }),
   });
 };
 
 export const useClusterLayout = () => {
   return useQuery({
     queryKey: ["layout"],
-    queryFn: () => api.get<GetClusterLayoutResult>("/v2/GetClusterLayout"),
+    queryFn: () => api.get<GetClusterLayoutResult>("/v2/GetClusterLayout", { admin: true }),
   });
 };
 
@@ -42,6 +43,7 @@ export const useConnectNode = (options?: Partial<UseMutationOptions>) => {
     mutationFn: async (nodeId) => {
       const [res] = await api.post("/v2/ConnectClusterNodes", {
         body: [nodeId],
+        admin: true,
       });
       if (!res.success) {
         throw new Error(res.error || "Unknown error");
@@ -57,6 +59,7 @@ export const useAssignNode = (options?: Partial<UseMutationOptions>) => {
     mutationFn: (data) =>
       api.post("/v2/UpdateClusterLayout", {
         body: { parameters: null, roles: [data] },
+        admin: true,
       }),
     ...(options as any),
   });
@@ -67,6 +70,7 @@ export const useUnassignNode = (options?: Partial<UseMutationOptions>) => {
     mutationFn: (nodeId) =>
       api.post("/v2/UpdateClusterLayout", {
         body: { parameters: null, roles: [{ id: nodeId, remove: true }] },
+        admin: true,
       }),
     ...(options as any),
   });
@@ -74,7 +78,7 @@ export const useUnassignNode = (options?: Partial<UseMutationOptions>) => {
 
 export const useRevertChanges = (options?: Partial<UseMutationOptions>) => {
   return useMutation<any, Error, number>({
-    mutationFn: () => api.post("/v2/RevertClusterLayout"),
+    mutationFn: () => api.post("/v2/RevertClusterLayout", { admin: true }),
     ...(options as any),
   });
 };
@@ -82,7 +86,7 @@ export const useRevertChanges = (options?: Partial<UseMutationOptions>) => {
 export const useApplyChanges = (options?: Partial<UseMutationOptions>) => {
   return useMutation<ApplyLayoutResult, Error, number>({
     mutationFn: (version) =>
-      api.post("/v2/ApplyClusterLayout", { body: { version } }),
+      api.post("/v2/ApplyClusterLayout", { body: { version }, admin: true }),
     ...(options as any),
   });
 };

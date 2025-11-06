@@ -25,3 +25,40 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
+func AdminMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := utils.Session.Get(r, "authenticated")
+
+		if auth == nil || !auth.(bool) {
+			utils.ResponseErrorStatus(w, errors.New("unauthorized"), http.StatusUnauthorized)
+			return
+		}
+
+		isAdmin := false
+		user := utils.GetUserSession(r)
+		if user != nil {
+			isAdmin = user.IsAdmin
+		}
+
+		if !isAdmin {
+			utils.ResponseErrorStatus(w, errors.New("admin access required"), http.StatusForbidden)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func UserOrAdminMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := utils.Session.Get(r, "authenticated")
+
+		if auth == nil || !auth.(bool) {
+			utils.ResponseErrorStatus(w, errors.New("unauthorized"), http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}

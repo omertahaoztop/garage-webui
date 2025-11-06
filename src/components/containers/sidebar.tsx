@@ -19,16 +19,19 @@ import * as utils from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
-const pages = [
-  { icon: LayoutDashboard, title: "Dashboard", path: "/", exact: true },
-  { icon: HardDrive, title: "Cluster", path: "/cluster" },
-  { icon: ArchiveIcon, title: "Buckets", path: "/buckets" },
-  { icon: KeySquare, title: "Keys", path: "/keys" },
+const allPages = [
+  { icon: LayoutDashboard, title: "Dashboard", path: "/", exact: true, adminOnly: false },
+  { icon: HardDrive, title: "Cluster", path: "/cluster", adminOnly: true },
+  { icon: ArchiveIcon, title: "Buckets", path: "/buckets", adminOnly: false },
+  { icon: KeySquare, title: "Keys", path: "/keys", adminOnly: true },
 ];
 
 const Sidebar = () => {
   const { pathname } = useLocation();
   const auth = useAuth();
+
+  // Filter pages based on admin status
+  const pages = allPages.filter(page => !page.adminOnly || auth.isAdmin);
 
   return (
     <aside className="bg-base-100 border-r border-base-300/30 w-[80%] md:w-[250px] flex flex-col items-stretch overflow-hidden h-full">

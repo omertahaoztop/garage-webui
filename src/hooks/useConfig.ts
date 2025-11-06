@@ -5,6 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 export const useConfig = () => {
   return useQuery<Config>({
     queryKey: ["config"],
-    queryFn: () => api.get("/config"),
+    queryFn: () => api.get("/config", { admin: true }),
   });
 };

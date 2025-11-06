@@ -30,3 +30,7 @@ docker-compose.*.yml
 data/
 meta/
 garage.toml
+
+# Test and utility files
+backend/test_hash.go
+backend/gen_password.go

@@ -11,25 +11,25 @@ func HandleApiRouter() *http.ServeMux {
 	auth := &Auth{}
 	mux.HandleFunc("POST /auth/login", auth.Login)
 
-	router := http.NewServeMux()
-	router.HandleFunc("POST /auth/logout", auth.Logout)
-	router.HandleFunc("GET /auth/status", auth.GetStatus)
-
-	config := &Config{}
-	router.HandleFunc("GET /config", config.GetAll)
+	userRouter := http.NewServeMux()
+	userRouter.HandleFunc("POST /auth/logout", auth.Logout)
+	userRouter.HandleFunc("GET /auth/status", auth.GetStatus)
 
 	buckets := &Buckets{}
-	router.HandleFunc("GET /buckets", buckets.GetAll)
+	userRouter.HandleFunc("GET /buckets", buckets.GetAll)
 
 	browse := &Browse{}
-	router.HandleFunc("GET /browse/{bucket}", browse.GetObjects)
-	router.HandleFunc("GET /browse/{bucket}/{key...}", browse.GetOneObject)
-	router.HandleFunc("PUT /browse/{bucket}/{key...}", browse.PutObject)
-	router.HandleFunc("DELETE /browse/{bucket}/{key...}", browse.DeleteObject)
+	userRouter.HandleFunc("GET /browse/{bucket}", browse.GetObjects)
+	userRouter.HandleFunc("GET /browse/{bucket}/{key...}", browse.GetOneObject)
+	userRouter.HandleFunc("PUT /browse/{bucket}/{key...}", browse.PutObject)
+	userRouter.HandleFunc("DELETE /browse/{bucket}/{key...}", browse.DeleteObject)
 
-	// Proxy request to garage api endpoint
-	router.HandleFunc("/", ProxyHandler)
+	adminRouter := http.NewServeMux()
+	config := &Config{}
+	adminRouter.HandleFunc("GET /config", config.GetAll)
+	adminRouter.HandleFunc("/", ProxyHandler)
+	mux.Handle("/admin/", http.StripPrefix("/admin", middleware.AdminMiddleware(adminRouter)))
+	mux.Handle("/", middleware.UserOrAdminMiddleware(userRouter))
 
-	mux.Handle("/", middleware.AuthMiddleware(router))
 	return mux
 }

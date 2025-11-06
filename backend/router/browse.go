@@ -28,12 +28,27 @@ func (b *Browse) GetObjects(w http.ResponseWriter, r *http.Request) {
 	prefix := query.Get("prefix")
 	continuationToken := query.Get("next")
 
+	user := utils.GetUserSession(r)
+	if user != nil && !user.IsAdmin {
+		hasAccess := false
+		for _, accessibleBucket := range user.AccessibleBuckets {
+			if accessibleBucket == bucket {
+				hasAccess = true
+				break
+			}
+		}
+		if !hasAccess {
+			utils.ResponseErrorStatus(w, errors.New("access denied to this bucket"), http.StatusForbidden)
+			return
+		}
+	}
+
 	limit, err := strconv.Atoi(query.Get("limit"))
 	if err != nil {
 		limit = 100
 	}
 
-	client, err := getS3Client(bucket)
+	client, err := getS3Client(bucket, r)
 	if err != nil {
 		utils.ResponseError(w, err)
 		return
@@ -88,7 +103,22 @@ func (b *Browse) GetOneObject(w http.ResponseWriter, r *http.Request) {
 	thumbnail := queryParams.Get("thumb") == "1"
 	download := queryParams.Get("dl") == "1"
 
-	client, err := getS3Client(bucket)
+	user := utils.GetUserSession(r)
+	if user != nil && !user.IsAdmin {
+		hasAccess := false
+		for _, accessibleBucket := range user.AccessibleBuckets {
+			if accessibleBucket == bucket {
+				hasAccess = true
+				break
+			}
+		}
+		if !hasAccess {
+			utils.ResponseErrorStatus(w, errors.New("access denied to this bucket"), http.StatusForbidden)
+			return
+		}
+	}
+
+	client, err := getS3Client(bucket, r)
 	if err != nil {
 		utils.ResponseError(w, err)
 		return
@@ -174,6 +204,21 @@ func (b *Browse) PutObject(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	isDirectory := strings.HasSuffix(key, "/")
 
+	user := utils.GetUserSession(r)
+	if user != nil && !user.IsAdmin {
+		hasAccess := false
+		for _, accessibleBucket := range user.AccessibleBuckets {
+			if accessibleBucket == bucket {
+				hasAccess = true
+				break
+			}
+		}
+		if !hasAccess {
+			utils.ResponseErrorStatus(w, errors.New("access denied to this bucket"), http.StatusForbidden)
+			return
+		}
+	}
+
 	file, headers, err := r.FormFile("file")
 	if err != nil && !isDirectory {
 		utils.ResponseError(w, err)
@@ -184,7 +229,7 @@ func (b *Browse) PutObject(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 	}
 
-	client, err := getS3Client(bucket)
+	client, err := getS3Client(bucket, r)
 	if err != nil {
 		utils.ResponseError(w, err)
 		return
@@ -220,13 +265,27 @@ func (b *Browse) DeleteObject(w http.ResponseWriter, r *http.Request) {
 	recursive := r.URL.Query().Get("recursive") == "true"
 	isDirectory := strings.HasSuffix(key, "/")
 
-	client, err := getS3Client(bucket)
+	user := utils.GetUserSession(r)
+	if user != nil && !user.IsAdmin {
+		hasAccess := false
+		for _, accessibleBucket := range user.AccessibleBuckets {
+			if accessibleBucket == bucket {
+				hasAccess = true
+				break
+			}
+		}
+		if !hasAccess {
+			utils.ResponseErrorStatus(w, errors.New("access denied to this bucket"), http.StatusForbidden)
+			return
+		}
+	}
+
+	client, err := getS3Client(bucket, r)
 	if err != nil {
 		utils.ResponseError(w, err)
 		return
 	}
 
-	// Delete directory and its content
 	if isDirectory && recursive {
 		objects, err := client.ListObjectsV2(context.Background(), &s3.ListObjectsV2Input{
 			Bucket: aws.String(bucket),
@@ -270,7 +329,6 @@ func (b *Browse) DeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delete single object
 	res, err := client.DeleteObject(context.Background(), &s3.DeleteObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -325,23 +383,20 @@ func getBucketCredentials(bucket string) (aws.CredentialsProvider, error) {
 	return credential, nil
 }
 
-func getS3Client(bucket string) (*s3.Client, error) {
+func getS3Client(bucket string, r *http.Request) (*s3.Client, error) {
 	creds, err := getBucketCredentials(bucket)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get credentials for bucket %s: %w", bucket, err)
 	}
 
-	// Determine endpoint and whether to disable HTTPS
 	endpoint := utils.Garage.GetS3Endpoint()
 	disableHTTPS := !strings.HasPrefix(endpoint, "https://")
 
-	// AWS config without BaseEndpoint
 	awsConfig := aws.Config{
 		Credentials: creds,
 		Region:      utils.Garage.GetS3Region(),
 	}
 
-	// Build S3 client with custom endpoint resolver for proper signing
 	client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
 		o.UsePathStyle = true
 		o.EndpointOptions.DisableHTTPS = disableHTTPS

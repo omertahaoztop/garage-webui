@@ -26,6 +26,7 @@ const KeysPage = () => {
     try {
       const result = await api.get("/v2/GetKeyInfo", {
         params: { id, showSecretKey: "true" },
+        admin: true,
       });
       if (!result?.secretAccessKey) {
         throw new Error("Failed to fetch secret key");
