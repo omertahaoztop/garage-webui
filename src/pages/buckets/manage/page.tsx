@@ -14,6 +14,7 @@ import MenuButton from "./components/menu-button";
 import BrowseTab from "./browse/browse-tab";
 import { BucketContext } from "./context";
 import { Alert, Loading } from "react-daisyui";
+import { useAuth } from "@/hooks/useAuth";
 
 const tabs: Tab[] = [
   {
@@ -39,15 +40,17 @@ const tabs: Tab[] = [
 const ManageBucketPage = () => {
   const { id } = useParams();
   const { data, error, isLoading, refetch } = useBucket(id);
+  const { isAdmin } = useAuth();
 
   const name = data?.globalAliases[0];
+  const availableTabs = isAdmin ? tabs : tabs.filter((tab) => tab.name === "browse");
 
   return (
     <>
       <Page
         title={name || "Manage Bucket"}
         prev="/buckets"
-        actions={data ? <MenuButton /> : undefined}
+        actions={data && isAdmin ? <MenuButton /> : undefined}
       />
 
       {isLoading && (
@@ -67,7 +70,7 @@ const ManageBucketPage = () => {
           <BucketContext.Provider
             value={{ bucket: data, refetch, bucketName: name || "" }}
           >
-            <TabView tabs={tabs} className="bg-base-100 h-14 px-1.5" />
+            <TabView tabs={availableTabs} className="bg-base-100 h-14 px-1.5" />
           </BucketContext.Provider>
         </div>
       )}

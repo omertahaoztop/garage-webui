@@ -1,16 +1,39 @@
-import api from "@/lib/api";
+import api, { APIError } from "@/lib/api";
 import {
   MutationOptions,
   useMutation,
   UseMutationOptions,
   useQuery,
 } from "@tanstack/react-query";
-import { Bucket, Permissions } from "../types";
+import { Bucket, GetBucketRes, Permissions } from "../types";
+import { useAuth } from "@/hooks/useAuth";
 
 export const useBucket = (id?: string | null) => {
+  const { isAdmin } = useAuth();
+
   return useQuery({
-    queryKey: ["bucket", id],
-    queryFn: () => api.get<Bucket>("/v2/GetBucketInfo", { params: { id }, admin: true }),
+    queryKey: ["bucket", id, isAdmin],
+    queryFn: async () => {
+      if (!id) {
+        throw new APIError("Bucket id is required", 400);
+      }
+
+      if (isAdmin) {
+        return api.get<Bucket>("/v2/GetBucketInfo", {
+          params: { id },
+          admin: true,
+        });
+      }
+
+      const buckets = await api.get<GetBucketRes>("/buckets");
+      const bucket = buckets.find((item) => item.id === id);
+
+      if (!bucket) {
+        throw new APIError("Bucket not found", 404);
+      }
+
+      return bucket;
+    },
     enabled: !!id,
   });
 };
