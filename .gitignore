@@ -31,6 +31,18 @@ data/
 meta/
 garage.toml
 
+# Build artifacts
+garage-webui
+*.exe
+*.dll
+
 # Test and utility files
 backend/test_hash.go
-backend/gen_password.go
+
+# Tools binaries
+tools/gen_password
+
+# Development and documentation
+.claude/
+BROWSER_IMPROVEMENTS.md
+NOTES.md
