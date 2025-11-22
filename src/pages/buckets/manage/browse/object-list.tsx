@@ -18,9 +18,10 @@ import GotoTopButton from "@/components/ui/goto-top-btn";
 type Props = {
   prefix?: string;
   onPrefixChange?: (prefix: string) => void;
+  searchQuery?: string;
 };
 
-const ObjectList = ({ prefix, onPrefixChange }: Props) => {
+const ObjectList = ({ prefix, onPrefixChange, searchQuery = "" }: Props) => {
   const { bucketName } = useBucketContext();
   const { data, error, isLoading } = useBrowseObjects(bucketName, {
     prefix,
@@ -30,6 +31,20 @@ const ObjectList = ({ prefix, onPrefixChange }: Props) => {
   const onObjectClick = (object: Object) => {
     window.open(API_URL + object.url + "?view=1", "_blank");
   };
+
+  const filterBySearch = (items: any[], query: string) => {
+    if (!query.trim()) return items;
+    const lowerQuery = query.toLowerCase();
+    return items.filter((item) => {
+      const itemName = typeof item === "string"
+        ? item.substring(0, item.lastIndexOf("/")).split("/").pop()
+        : item.objectKey;
+      return itemName?.toLowerCase().includes(lowerQuery);
+    });
+  };
+
+  const filteredPrefixes = filterBySearch(data?.prefixes || [], searchQuery);
+  const filteredObjects = filterBySearch(data?.objects || [], searchQuery);
 
   return (
     <div className="overflow-x-auto min-h-[400px]">
@@ -57,15 +72,15 @@ const ObjectList = ({ prefix, onPrefixChange }: Props) => {
                 </Alert>
               </td>
             </tr>
-          ) : !data?.prefixes?.length && !data?.objects?.length ? (
+          ) : !filteredPrefixes.length && !filteredObjects.length ? (
             <tr>
               <td className="text-center py-16" colSpan={3}>
-                No objects
+                {searchQuery ? "No objects found matching your search" : "No objects"}
               </td>
             </tr>
           ) : null}
 
-          {data?.prefixes.map((prefix) => (
+          {filteredPrefixes.map((prefix) => (
             <tr
               key={prefix}
               className="hover:bg-neutral/60 hover:text-neutral-content group"
@@ -88,7 +103,7 @@ const ObjectList = ({ prefix, onPrefixChange }: Props) => {
             </tr>
           ))}
 
-          {data?.objects.map((object, idx) => {
+          {filteredObjects.map((object, idx) => {
             const extIdx = object.objectKey.lastIndexOf(".");
             const filename =
               extIdx >= 0
@@ -119,10 +134,10 @@ const ObjectList = ({ prefix, onPrefixChange }: Props) => {
                   {dayjs(object.lastModified).fromNow()}
                 </td>
                 <ObjectActions
-                  prefix={data.prefix}
+                  prefix={data?.prefix}
                   object={object}
                   end={
-                    idx >= data.objects.length - 2 && data.objects.length > 5
+                    idx >= filteredObjects.length - 2 && filteredObjects.length > 5
                   }
                 />
               </tr>

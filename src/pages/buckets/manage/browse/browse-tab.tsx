@@ -24,6 +24,7 @@ const BrowseTab = () => {
     getInitialPrefixes(searchParams)
   );
   const [curPrefix, setCurPrefix] = useState(prefixHistory.length - 1);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const prefix = prefixHistory[curPrefix] || "";
@@ -57,11 +58,14 @@ const BrowseTab = () => {
           setCurPrefix={setCurPrefix}
           prefixHistory={prefixHistory}
           actions={<Actions prefix={prefixHistory[curPrefix] || ""} />}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
         />
 
         <ObjectList
           prefix={prefixHistory[curPrefix] || ""}
           onPrefixChange={gotoPrefix}
+          searchQuery={searchQuery}
         />
 
         <ShareDialog />
