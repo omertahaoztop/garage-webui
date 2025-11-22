@@ -21,7 +21,7 @@ The Garage Web UI is available as a single executable binary and docker image. Y
 ### Docker CLI
 
 ```sh
-$ docker run -p 3909:3909 -v ./garage.toml:/etc/garage.toml:ro --restart unless-stopped --name garage-webui khairul169/garage-webui:latest
+$ docker run -p 3919:3919 -v ./garage.toml:/etc/garage.toml:ro --restart unless-stopped --name garage-webui khairul169/garage-webui:latest
 ```
 
 ### Docker Compose
@@ -51,7 +51,7 @@ services:
     volumes:
       - ./garage.toml:/etc/garage.toml:ro
     ports:
-      - 3909:3909
+      - 3919:3919
     environment:
       API_BASE_URL: "http://garage:3903"
       S3_ENDPOINT_URL: "http://garage:3900"
@@ -85,8 +85,12 @@ Description=Garage Web UI
 After=network.target
 
 [Service]
-Environment="PORT=3919"
-Environment="CONFIG_PATH=/etc/garage.toml"
+Environment="PORT=3909"
+Environment="CONFIG_PATH=/etc/garage/config.toml"
+Environment="API_BASE_URL=http://127.0.0.1:3903"
+Environment="S3_ENDPOINT_URL=http://127.0.0.1:3900"
+Environment="S3_REGION=garage"
+Environment="AUTH_USER_PASS=admin:$2a$10$YourBcryptHashHere..."
 ExecStart=/usr/local/bin/garage-webui
 Restart=always
 
@@ -103,9 +107,14 @@ $ sudo systemctl enable --now garage-webui
 
 ### Configuration
 
-To simplify installation, the Garage Web UI uses values from the Garage configuration, such as `rpc_public_addr`, `admin.admin_token`, `s3_web.root_domain`, etc.
+The Garage Web UI **automatically reads** values from your Garage configuration file (`config.toml`):
+- `rpc_public_addr` - Used to construct API endpoints
+- `admin.admin_token` - Admin API authentication
+- `admin.api_bind_addr` - Admin API port (default: 3903)
+- `s3_api.api_bind_addr` - S3 API port (default: 3900)
+- `s3_api.s3_region` - S3 region name
 
-Example content of `config.toml`:
+**Example Garage `config.toml`:**
 
 ```toml
 metadata_dir = "/var/lib/garage/meta"
@@ -117,89 +126,159 @@ replication_factor = 3
 compression_level = 2
 
 rpc_bind_addr = "[::]:3901"
-rpc_public_addr = "localhost:3901" # Required
+rpc_public_addr = "127.0.0.1:3901" # Required - used for endpoint URLs
 rpc_secret = "YOUR_RPC_SECRET_HERE"
 
 [s3_api]
-s3_region = "garage"
+s3_region = "garage"  # Default region name
 api_bind_addr = "[::]:3900"
 root_domain = ".s3.domain.com"
 
-[s3_web] # Optional, if you want to expose bucket as web
+[s3_web] # Optional
 bind_addr = "[::]:3902"
 root_domain = ".web.domain.com"
 index = "index.html"
 
-[admin] # Required
+[admin] # Required for Web UI
 api_bind_addr = "[::]:3903"
 admin_token = "YOUR_ADMIN_TOKEN_HERE"
 metrics_token = "YOUR_METRICS_TOKEN_HERE"
 ```
 
-However, if it fails to load, you can set `API_BASE_URL` & `API_ADMIN_KEY` environment variables instead.
+**Manual override:** If auto-detection fails or you need custom endpoints, use environment variables (see below).
 
 ### Environment Variables
 
 Configurable envs:
 
 - `CONFIG_PATH`: Path to the Garage `config.toml` file. Defaults to `/etc/garage.toml`.
+- `PORT`: Web UI server port. Defaults to `3919`.
+- `HOST`: Server host. Defaults to `0.0.0.0`.
 - `BASE_PATH`: Base path or prefix for Web UI.
-- `API_BASE_URL`: Garage admin API endpoint URL.
-- `API_ADMIN_KEY`: Admin API key.
-- `S3_REGION`: S3 Region.
-- `S3_ENDPOINT_URL`: S3 Endpoint url.
+- `API_BASE_URL`: Garage admin API endpoint URL (overrides config file).
+- `API_ADMIN_KEY`: Admin API key (overrides config file).
+- `S3_REGION`: S3 Region (overrides config file). Defaults to `garage`.
+- `S3_ENDPOINT_URL`: S3 Endpoint URL (overrides config file).
+- `AUTH_USER_PASS`: Enable authentication. Format: `username:bcrypt_hash`.
 
 ### Authentication
 
-Enable authentication by setting the `AUTH_USER_PASS` environment variable in the format `username:password_hash`, where `password_hash` is a bcrypt hash of the password.
+Authentication is **disabled by default**. Enable it by setting the `AUTH_USER_PASS` environment variable in the format `username:bcrypt_hash`.
 
-Generate the username and password hash using the following command:
+**Generate bcrypt hash:**
 
+**Option 1: Using the included password generator (development only)**
+```bash
+# Build the tool
+make gen-password
+
+# Generate hash
+./tools/gen_password admin mypassword123
+```
+
+**Option 2: Using htpasswd**
 ```bash
 htpasswd -nbBC 10 "YOUR_USERNAME" "YOUR_PASSWORD"
 ```
 
-> If command 'htpasswd' is not found, install `apache2-utils` using your package manager.
+> If `htpasswd` is not found, install `apache2-utils` (Debian/Ubuntu) or `httpd-tools` (RHEL/CentOS) using your package manager.
 
-Then update your `docker-compose.yml`:
+**Example output:**
+```
+admin:$2a$10$YourBcryptHashHere...
+```
+
+**Docker Compose:**
 
 ```yml
 webui:
   ....
   environment:
-    AUTH_USER_PASS: "username:$2y$10$DSTi9o..."
+    AUTH_USER_PASS: "admin:$2a$10$YourBcryptHashHere..."
+```
+
+**Systemd service:**
+
+Add to the `[Service]` section:
+```
+Environment="AUTH_USER_PASS=admin:$2a$10$YourBcryptHashHere..."
 ```
 
 ### Running
 
-Once your instance of Garage Web UI is started, you can open the web UI at http://your-ip:3909. You can place it behind a reverse proxy to secure it with SSL.
+Once your instance of Garage Web UI is started, you can open the web UI at http://your-ip:3919. You can place it behind a reverse proxy to secure it with SSL.
 
 ## Development
 
 This project is bootstrapped using TypeScript & React for the UI, and Go for backend. If you want to build it yourself or add additional features, follow these steps:
 
+### Prerequisites
+
+- **Node.js** (v18+)
+- **pnpm** (`npm install -g pnpm`)
+- **Go** (v1.21+)
+- **Air** (for hot reload): `go install github.com/air-verse/air@latest`
+
 ### Setup
 
 ```sh
 $ git clone https://github.com/khairul169/garage-webui.git
-$ cd garage-webui && pnpm install
-$ cd backend && pnpm install && cd ..
+$ cd garage-webui
+$ pnpm install
 ```
 
-### Running
+### Running Development Server
 
-Start both the client and server concurrently:
-
+**Option 1: Start both frontend + backend concurrently**
 ```sh
-$ pnpm run dev # or npm run dev
+$ pnpm run dev
 ```
 
-Or start each instance separately:
-
+**Option 2: Start separately**
 ```sh
+# Terminal 1 - Frontend (Vite dev server on :5173)
 $ pnpm run dev:client
+
+# Terminal 2 - Backend (Go server on :3919 with hot reload)
 $ cd backend
-$ pnpm run dev:server
+$ air
+```
+
+### Building for Production
+
+**Using Makefile (Recommended):**
+```sh
+# Build everything (frontend + backend)
+$ make build
+
+# Or build separately
+$ make build-frontend  # Output: dist/ and backend/ui/dist/
+$ make build-backend   # Output: garage-webui
+
+# Clean build artifacts
+$ make clean
+
+# See all available commands
+$ make help
+```
+
+**Manual build:**
+```sh
+# 1. Build frontend
+$ pnpm run build  # Output: dist/
+
+# 2. Copy dist to backend UI directory
+$ rm -rf backend/ui/dist
+$ cp -r dist backend/ui/dist
+
+# 3. Build backend (with embedded frontend)
+$ cd backend
+$ go build -tags prod -o ../garage-webui .
+```
+
+**Run production binary:**
+```sh
+$ CONFIG_PATH=./garage.toml ./garage-webui
 ```
 
 ## Troubleshooting
