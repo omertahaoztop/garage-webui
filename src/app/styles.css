@@ -1,39 +1,312 @@
+/*
+ * Garage WebUI — Linear+Vercel hybrid design system.
+ *
+ * - Inter Variable from rsms.me (CDN, lightweight)
+ * - Surface ladder + hairlines carry hierarchy
+ * - Indigo brand accent, micro-bounce on buttons, scroll polish
+ */
+@import url("https://rsms.me/inter/inter.css");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  /* Default dark surface ladder (matches DaisyUI garage-dark theme). */
+  :root,
+  [data-theme="garage-dark"] {
+    --gw-canvas: #0a0a0b;
+    --gw-surface-1: #131316;
+    --gw-surface-2: #1a1a1e;
+    --gw-surface-3: #22222a;
+    --gw-surface-4: #2a2a32;
+    --gw-hairline: #2a2a32;
+    --gw-hairline-strong: #3a3a44;
+    --gw-fg-primary: #f4f4f5;
+    --gw-fg-secondary: #a1a1aa;
+    --gw-fg-muted: #71717a;
+    --gw-brand: #6366f1;
+    --gw-brand-soft: #818cf8;
+    --gw-success: #10b981;
+    --gw-warning: #f59e0b;
+    --gw-error: #ef4444;
+  }
+
+  /* Light surface ladder. */
+  [data-theme="garage-light"] {
+    --gw-canvas: #ffffff;
+    --gw-surface-1: #fafafa;
+    --gw-surface-2: #f4f4f5;
+    --gw-surface-3: #e4e4e7;
+    --gw-surface-4: #d4d4d8;
+    --gw-hairline: #e4e4e7;
+    --gw-hairline-strong: #d4d4d8;
+    --gw-fg-primary: #18181b;
+    --gw-fg-secondary: #52525b;
+    --gw-fg-muted: #71717a;
+    --gw-brand: #4f46e5;
+    --gw-brand-soft: #6366f1;
+    --gw-success: #059669;
+    --gw-warning: #d97706;
+    --gw-error: #dc2626;
+  }
+
   html,
   body {
-    @apply bg-base-200 overflow-hidden;
+    font-family: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont,
+      "Segoe UI", system-ui, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11"; /* Inter alternates: nicer 4/6/9 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
-}
 
-@layer utilities {
-  .container {
-    @apply max-w-5xl;
+  @supports (font-variation-settings: normal) {
+    html,
+    body {
+      font-family: "Inter Variable", "Inter", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", system-ui, sans-serif;
+    }
+  }
+
+  body {
+    @apply bg-base-200 overflow-hidden;
+    color: var(--gw-fg-primary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Headings — negative tracking, weight cap 600. */
+  h1 {
+    @apply text-h1 font-semibold;
+  }
+  h2 {
+    @apply text-h2 font-semibold;
+  }
+  h3 {
+    @apply text-h3 font-medium;
+  }
+
+  /* Code/mono — JetBrains Mono. */
+  code,
+  pre,
+  .font-mono {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* Scrollbar — Linear-ish thin + dim. */
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--gw-hairline);
+    border-radius: 4px;
+    transition: background 150ms ease;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--gw-hairline-strong);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--gw-hairline) transparent;
+  }
+
+  /* Focus ring — brand indigo, only on keyboard. */
+  :focus-visible {
+    outline: 2px solid var(--gw-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Text selection. */
+  ::selection {
+    background: var(--gw-brand-soft);
+    color: var(--gw-fg-primary);
   }
 }
 
 @layer components {
+  /* Card — surface-1 + hairline border, NO drop shadow (Linear approach). */
   .card {
-    @apply bg-base-100;
+    @apply bg-base-100 rounded-gw-md;
+    box-shadow: inset 0 0 0 1px var(--gw-hairline);
+    transition: box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .card:hover {
+    box-shadow: inset 0 0 0 1px var(--gw-hairline-strong);
   }
 
   .card-body {
-    @apply p-4 md:p-8;
+    @apply p-4 md:p-6;
   }
 
-  .dropdown-content {
-    @apply z-10;
+  /* Buttons — Vercel micro-bounce on click. */
+  .btn {
+    transition: transform 100ms cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 150ms ease, border-color 150ms ease,
+      box-shadow 150ms ease;
+    font-weight: 500;
   }
 
-  .table.table-sm th,
-  .table.table-xs th {
-    @apply py-4;
+  .btn:active {
+    transform: scale(0.97);
+  }
+
+  .btn-primary {
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset,
+      0 0 0 1px var(--gw-brand);
+  }
+
+  .btn-ghost:hover {
+    background: var(--gw-surface-2);
+  }
+
+  /* Inputs */
+  .input,
+  .textarea,
+  .select {
+    @apply bg-base-100 rounded-gw-sm;
+    box-shadow: inset 0 0 0 1px var(--gw-hairline);
+    border: none !important;
+    transition: box-shadow 150ms ease, background-color 150ms ease;
+  }
+
+  .input:focus,
+  .textarea:focus,
+  .select:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 1px var(--gw-brand),
+      0 0 0 3px color-mix(in srgb, var(--gw-brand) 25%, transparent);
+  }
+
+  /* Modal — backdrop blur + floating shadow. */
+  .modal {
+    backdrop-filter: blur(2px);
+  }
+
+  .modal-box {
+    @apply rounded-gw-lg;
+    background: var(--gw-surface-1);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4),
+      inset 0 0 0 1px var(--gw-hairline-strong);
+    border: none !important;
   }
 
   .modal-backdrop {
     @apply border-none outline-none;
+    background: rgba(0, 0, 0, 0.5);
   }
+
+  /* Dropdown — floating shadow + hairline. */
+  .dropdown-content {
+    @apply z-10 rounded-gw-md;
+    background: var(--gw-surface-1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+      inset 0 0 0 1px var(--gw-hairline);
+  }
+
+  /* Tables — quieter headers (uppercase caption). */
+  .table thead th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    color: var(--gw-fg-secondary);
+  }
+
+  .table.table-sm th,
+  .table.table-xs th {
+    @apply py-3;
+  }
+
+  /* Badge */
+  .badge {
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+
+  /* Tabs — flat, brand indicator. */
+  .tabs-bordered .tab {
+    border-bottom-width: 1px;
+    transition: color 150ms ease;
+  }
+
+  .tabs-bordered .tab-active {
+    border-color: var(--gw-brand);
+    color: var(--gw-brand-soft);
+  }
+
+  /* Menu items — hover lift. */
+  .menu li > a,
+  .menu li > button {
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+}
+
+@layer utilities {
+  /* Container — full-width fluid for storage console density. Fills the
+     main content area at every viewport instead of clamping to a fixed
+     max-width (which left a large empty gutter on wide screens). */
+  .container {
+    @apply w-full max-w-full mx-0;
+  }
+
+  /* Surface utilities for direct CSS-var consumption. */
+  .bg-canvas {
+    background-color: var(--gw-canvas);
+  }
+  .bg-surface-1 {
+    background-color: var(--gw-surface-1);
+  }
+  .bg-surface-2 {
+    background-color: var(--gw-surface-2);
+  }
+  .bg-surface-3 {
+    background-color: var(--gw-surface-3);
+  }
+  .border-hairline {
+    border-color: var(--gw-hairline);
+  }
+  .border-hairline-strong {
+    border-color: var(--gw-hairline-strong);
+  }
+
+  /* Text. */
+  .text-fg-primary {
+    color: var(--gw-fg-primary);
+  }
+  .text-fg-secondary {
+    color: var(--gw-fg-secondary);
+  }
+  .text-fg-muted {
+    color: var(--gw-fg-muted);
+  }
+
+  /* Brand utilities. */
+  .text-brand {
+    color: var(--gw-brand);
+  }
+  .bg-brand {
+    background-color: var(--gw-brand);
+  }
+
+  /* Subtle hover background. */
+  .hover-surface-2:hover {
+    background-color: var(--gw-surface-2);
+  }
+}
+
+/* Cmd+K command palette entrance bounce (Vercel-style, 150ms) */
+.cmdk-root {
+  animation: cmdk-in 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes cmdk-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
 }
