@@ -12,8 +12,13 @@ type Buckets struct{}
 
 func (b *Buckets) GetAll(w http.ResponseWriter, r *http.Request) {
 	user := utils.GetUserSession(r)
+	cluster := utils.GetCluster(r)
+	if cluster == nil {
+		utils.ResponseError(w, fmt.Errorf("no cluster selected"))
+		return
+	}
 
-	body, err := utils.Garage.Fetch("/v2/ListBuckets", &utils.FetchOptions{})
+	body, err := cluster.Fetch("/v2/ListBuckets", &utils.FetchOptions{})
 	if err != nil {
 		utils.ResponseError(w, err)
 		return
@@ -51,7 +56,7 @@ func (b *Buckets) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	for _, bucket := range buckets {
 		go func(b schema.GetBucketsRes) {
-			body, err := utils.Garage.Fetch(fmt.Sprintf("/v2/GetBucketInfo?id=%s", b.ID), &utils.FetchOptions{})
+			body, err := cluster.Fetch(fmt.Sprintf("/v2/GetBucketInfo?id=%s", b.ID), &utils.FetchOptions{})
 
 			if err != nil {
 				ch <- schema.Bucket{ID: b.ID, GlobalAliases: b.GlobalAliases}

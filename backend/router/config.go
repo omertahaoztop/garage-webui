@@ -7,7 +7,14 @@ import (
 
 type Config struct{}
 
+// GetAll returns the raw TOML-parsed Garage config for the active cluster.
+// Only populated in single-cluster mode where the webui can read
+// /etc/garage.toml. Multi-cluster YAML mode returns the zero value.
 func (c *Config) GetAll(w http.ResponseWriter, r *http.Request) {
-	config := utils.Garage.Config
-	utils.ResponseSuccess(w, config)
+	cluster := utils.GetCluster(r)
+	if cluster == nil {
+		utils.ResponseSuccess(w, map[string]interface{}{})
+		return
+	}
+	utils.ResponseSuccess(w, cluster.TomlConfig)
 }

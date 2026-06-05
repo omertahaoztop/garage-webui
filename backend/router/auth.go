@@ -30,6 +30,12 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cluster := utils.GetCluster(r)
+	if cluster == nil {
+		utils.ResponseErrorStatus(w, errors.New("no cluster configured"), http.StatusInternalServerError)
+		return
+	}
+
 	userPass := strings.Split(utils.GetEnv("AUTH_USER_PASS", ""), ":")
 	accessKeyID := body.AccessKeyID
 	secretAccessKey := body.SecretAccessKey
@@ -54,12 +60,12 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	if accessKeyID != "" && secretAccessKey != "" {
 		creds := credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, "")
-		endpoint := utils.Garage.GetS3Endpoint()
+		endpoint := cluster.GetS3Endpoint()
 		disableHTTPS := !strings.HasPrefix(endpoint, "https://")
 
 		awsConfig := aws.Config{
 			Credentials: creds,
-			Region:      utils.Garage.GetS3Region(),
+			Region:      cluster.GetS3Region(),
 		}
 
 		client := s3.NewFromConfig(awsConfig, func(o *s3.Options) {
@@ -68,7 +74,7 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 			o.EndpointResolver = s3.EndpointResolverFunc(func(region string, opts s3.EndpointResolverOptions) (aws.Endpoint, error) {
 				return aws.Endpoint{
 					URL:           endpoint,
-					SigningRegion: utils.Garage.GetS3Region(),
+					SigningRegion: cluster.GetS3Region(),
 				}, nil
 			})
 		})
@@ -86,7 +92,7 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		bodyData, err := utils.Garage.Fetch(fmt.Sprintf("/v2/GetKeyInfo?id=%s", accessKeyID), &utils.FetchOptions{})
+		bodyData, err := cluster.Fetch(fmt.Sprintf("/v2/GetKeyInfo?id=%s", accessKeyID), &utils.FetchOptions{})
 		if err != nil {
 			utils.Session.Set(r, "authenticated", true)
 			utils.Session.SetUserSession(r, utils.UserSession{
@@ -104,12 +110,12 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 		var keyInfo schema.KeyElement
 		if err := json.Unmarshal(bodyData, &keyInfo); err == nil {
 			isAdmin := false
-			allBuckets, _ := utils.Garage.Fetch("/v2/ListBuckets", &utils.FetchOptions{})
+			allBuckets, _ := cluster.Fetch("/v2/ListBuckets", &utils.FetchOptions{})
 			if allBuckets != nil {
 				var buckets []schema.GetBucketsRes
 				if json.Unmarshal(allBuckets, &buckets) == nil {
 					for _, bucket := range buckets {
-						bucketInfo, _ := utils.Garage.Fetch(fmt.Sprintf("/v2/GetBucketInfo?id=%s", bucket.ID), &utils.FetchOptions{})
+						bucketInfo, _ := cluster.Fetch(fmt.Sprintf("/v2/GetBucketInfo?id=%s", bucket.ID), &utils.FetchOptions{})
 						if bucketInfo != nil {
 							var bucketData schema.Bucket
 							if json.Unmarshal(bucketInfo, &bucketData) == nil {
@@ -151,25 +157,32 @@ func (c *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Auth) GetStatus(w http.ResponseWriter, r *http.Request) {
-	isAuthenticated := false
-	isAdmin := false
-	authSession := utils.Session.Get(r, "authenticated")
-	enabled := false
+	enabled := utils.GetEnv("AUTH_USER_PASS", "") != ""
 
-	if utils.GetEnv("AUTH_USER_PASS", "") != "" {
-		enabled = true
+	// Auth-disabled mode: treat every caller as an authenticated admin so that
+	// the SPA's main-layout auth gate does not bounce them to /auth/login.
+	if !enabled {
+		utils.ResponseSuccess(w, map[string]interface{}{
+			"enabled":       false,
+			"authenticated": true,
+			"isAdmin":       true,
+		})
+		return
 	}
 
-	if authSession != nil && authSession.(bool) {
-		isAuthenticated = true
-		user := utils.GetUserSession(r)
-		if user != nil {
-			isAdmin = user.IsAdmin
+	isAuthenticated := false
+	isAdmin := false
+	if authSession := utils.Session.Get(r, "authenticated"); authSession != nil {
+		if v, ok := authSession.(bool); ok && v {
+			isAuthenticated = true
+			if user := utils.GetUserSession(r); user != nil {
+				isAdmin = user.IsAdmin
+			}
 		}
 	}
 
 	utils.ResponseSuccess(w, map[string]interface{}{
-		"enabled":       enabled,
+		"enabled":       true,
 		"authenticated": isAuthenticated,
 		"isAdmin":       isAdmin,
 	})

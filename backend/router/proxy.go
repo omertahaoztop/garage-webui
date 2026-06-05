@@ -1,6 +1,7 @@
 package router
 
 import (
+	"errors"
 	"fmt"
 	"khairul169/garage-webui/utils"
 	"net/http"
@@ -10,17 +11,26 @@ import (
 )
 
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
-	target, err := url.Parse(utils.Garage.GetAdminEndpoint())
+	cluster := utils.GetCluster(r)
+	if cluster == nil {
+		utils.ResponseErrorStatus(w, errors.New("no cluster configured"), http.StatusInternalServerError)
+		return
+	}
+
+	target, err := url.Parse(cluster.GetAdminEndpoint())
 	if err != nil {
 		utils.ResponseError(w, err)
 		return
 	}
 
+	token := cluster.GetAdminKey()
 	proxy := &httputil.ReverseProxy{
-		Rewrite: func(r *httputil.ProxyRequest) {
-			r.SetURL(target)
-			r.Out.URL.Path = strings.TrimPrefix(r.In.URL.Path, "/api")
-			r.Out.Header.Set("Authorization", fmt.Sprintf("Bearer %s", utils.Garage.GetAdminKey()))
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.SetURL(target)
+			pr.Out.URL.Path = strings.TrimPrefix(pr.In.URL.Path, "/api")
+			if token != "" {
+				pr.Out.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+			}
 		},
 	}
 
