@@ -46,3 +46,9 @@ tools/gen_password
 .claude/
 BROWSER_IMPROVEMENTS.md
 NOTES.md
+
+.lore.md
+.serena/
+.playwright-mcp/
+AGENTS.md
+local_cache/
