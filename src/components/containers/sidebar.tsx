@@ -1,113 +1,195 @@
-import { cn, ucfirst } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   ArchiveIcon,
+  Boxes,
+  ChevronsLeft,
+  ChevronsRight,
+  Cpu,
   HardDrive,
   KeySquare,
+  KeyRound,
   LayoutDashboard,
   LogOut,
+  Network,
   Palette,
 } from "lucide-react";
-import { Dropdown, Menu } from "react-daisyui";
+import { Dropdown } from "react-daisyui";
 import { Link, useLocation } from "react-router-dom";
-import Button from "../ui/button";
-import { themes } from "@/app/themes";
+import { useState } from "react";
+import { useStore } from "zustand";
+import { THEME_LABELS, themes } from "@/app/themes";
 import appStore from "@/stores/app-store";
-import garageLogo from "@/assets/garage-logo.svg";
 import { useMutation } from "@tanstack/react-query";
 import api from "@/lib/api";
 import * as utils from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import ClusterSwitcher from "./cluster-switcher";
+
+// Inverted-L navigation (Linear style):
+//   Sidebar (240px / 64px collapsed) + Header (56px) form an L.
+//   - Indigo accent only on the ACTIVE menu item background tint.
+//   - Brand monogram replaces the decorative logo block.
+//   - Bottom controls (Theme / Sign out / Collapse) share one column.
+//   - Mobile: react-daisyui Drawer overlay opens the sidebar at full width.
 
 const allPages = [
   { icon: LayoutDashboard, title: "Dashboard", path: "/", exact: true, adminOnly: false },
-  { icon: HardDrive, title: "Cluster", path: "/cluster", adminOnly: true },
+  { icon: HardDrive, title: "Cluster", path: "/cluster", exact: true, adminOnly: true },
+  { icon: Network, title: "Layout", path: "/cluster/layout", adminOnly: true },
+  { icon: Cpu, title: "Workers", path: "/workers", adminOnly: true },
+  { icon: Boxes, title: "Block Errors", path: "/blocks", adminOnly: true },
   { icon: ArchiveIcon, title: "Buckets", path: "/buckets", adminOnly: false },
   { icon: KeySquare, title: "Keys", path: "/keys", adminOnly: true },
+  { icon: KeyRound, title: "Admin Tokens", path: "/admin-tokens", adminOnly: true },
 ];
 
 const Sidebar = () => {
   const { pathname } = useLocation();
   const auth = useAuth();
-
-  // Filter pages based on admin status
-  const pages = allPages.filter(page => !page.adminOnly || auth.isAdmin);
+  const [collapsed, setCollapsed] = useState(false);
+  const theme = useStore(appStore, (s) => s.theme);
+  const pages = allPages.filter((p) => !p.adminOnly || auth.isAdmin);
 
   return (
-    <aside className="bg-base-100 border-r border-base-300/30 w-[80%] md:w-[250px] flex flex-col items-stretch overflow-hidden h-full">
-      <div className="p-4">
-        <img
-          src={garageLogo}
-          alt="logo"
-          className="w-full max-w-[100px] mx-auto"
-        />
-        <p className="text-sm font-medium text-center">WebUI</p>
+    <aside
+      className={cn(
+        "bg-base-100 border-r border-hairline flex flex-col h-full overflow-hidden transition-[width] duration-150 ease-gw",
+        collapsed ? "w-[64px]" : "w-full md:w-[240px]"
+      )}
+    >
+      {/* Brand block */}
+      <div
+        className={cn(
+          "flex items-center gap-2.5 h-[57px] border-b border-hairline shrink-0",
+          collapsed ? "justify-center px-0" : "px-4"
+        )}
+      >
+        <div className="w-7 h-7 rounded-gw-md bg-primary text-primary-content flex items-center justify-center font-semibold text-[14px] tracking-tight shrink-0">
+          G
+        </div>
+        {!collapsed && (
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold leading-tight text-fg-primary">
+              Garage
+            </p>
+            <p className="text-[11px] text-fg-muted leading-tight">
+              Storage Console
+            </p>
+          </div>
+        )}
       </div>
 
-      <Menu className="gap-y-1 flex-1 overflow-y-auto">
-        {pages.map((page) => {
-          const isActive = page.exact
-            ? pathname === page.path
-            : pathname.startsWith(page.path);
-          return (
-            <Menu.Item key={page.path}>
-              <Link
-                to={page.path}
+      {/* Cluster switcher — full-width row, hidden when collapsed */}
+      {!collapsed && (
+        <div className="px-3 py-2 border-b border-hairline shrink-0">
+          <ClusterSwitcher />
+        </div>
+      )}
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-2 px-2">
+        <ul className="space-y-0.5">
+          {pages.map((p) => {
+            const isActive = p.exact ? pathname === p.path : pathname.startsWith(p.path);
+            const Icon = p.icon;
+            return (
+              <li key={p.path}>
+                <Link
+                  to={p.path}
+                  className={cn(
+                    "flex items-center gap-2.5 h-8 rounded-gw-sm text-body-sm font-medium transition-colors duration-100 ease-gw",
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-fg-secondary hover:bg-base-200 hover:text-fg-primary",
+                    collapsed ? "justify-center px-0" : "px-2.5"
+                  )}
+                  title={collapsed ? p.title : undefined}
+                >
+                  <Icon size={16} strokeWidth={1.75} />
+                  {!collapsed && <span>{p.title}</span>}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* Bottom controls */}
+      <div className="border-t border-hairline px-2 py-2 space-y-0.5 shrink-0">
+        <Dropdown vertical="top">
+          <Dropdown.Toggle
+            button={false}
+            className={cn(
+              "flex items-center gap-2.5 h-8 rounded-gw-sm text-body-sm font-medium text-fg-secondary hover:bg-base-200 hover:text-fg-primary cursor-pointer w-full transition-colors duration-100 ease-gw",
+              collapsed ? "justify-center px-0" : "px-2.5"
+            )}
+          >
+            <Palette size={16} strokeWidth={1.75} />
+            {!collapsed && <span>Theme</span>}
+          </Dropdown.Toggle>
+          <Dropdown.Menu className="w-44 max-h-72 overflow-y-auto p-1">
+            {themes.map((t) => (
+              <Dropdown.Item
+                key={t}
+                onClick={() => appStore.setTheme(t)}
                 className={cn(
-                  "h-12 flex items-center px-6",
-                  isActive &&
-                    "bg-primary text-primary-content hover:bg-primary/60 focus:bg-primary focus:text-primary-content"
+                  "text-body-sm rounded-gw-xs",
+                  theme === t && "text-primary font-medium"
                 )}
               >
-                <page.icon size={18} />
-                <p>{page.title}</p>
-              </Link>
-            </Menu.Item>
-          );
-        })}
-      </Menu>
-
-      <div className="py-2 px-4 flex items-center gap-2">
-        <Dropdown vertical="top">
-          <Dropdown.Toggle button={false}>
-            <Button icon={Palette} color="ghost">
-              {!auth.isEnabled ? "Theme" : null}
-            </Button>
-          </Dropdown.Toggle>
-
-          <Dropdown.Menu className="max-h-[500px] overflow-y-auto">
-            {themes.map((theme) => (
-              <Dropdown.Item
-                key={theme}
-                onClick={() => appStore.setTheme(theme)}
-              >
-                {ucfirst(theme)}
+                {THEME_LABELS[t] || t}
               </Dropdown.Item>
             ))}
           </Dropdown.Menu>
         </Dropdown>
 
-        {auth.isEnabled ? <LogoutButton /> : null}
+        {auth.isEnabled && <LogoutButton collapsed={collapsed} />}
+
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          className={cn(
+            "hidden md:flex items-center gap-2.5 h-8 rounded-gw-sm text-body-sm font-medium text-fg-muted hover:bg-base-200 hover:text-fg-primary w-full transition-colors duration-100 ease-gw",
+            collapsed ? "justify-center px-0" : "px-2.5"
+          )}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+          {!collapsed && <span>Collapse</span>}
+        </button>
       </div>
     </aside>
   );
 };
 
-const LogoutButton = () => {
+type LogoutBtnProps = { collapsed: boolean };
+
+const LogoutButton = ({ collapsed }: LogoutBtnProps) => {
   const logout = useMutation({
     mutationFn: () => api.post("/auth/logout"),
     onSuccess: () => {
       window.location.href = utils.url("/auth/login");
     },
-    onError: (err) => {
-      toast.error(err?.message || "Unknown error");
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Logout failed";
+      toast.error(msg);
     },
   });
-
   return (
-    <Button className="flex-1" icon={LogOut} onClick={() => logout.mutate()}>
-      Logout
-    </Button>
+    <button
+      type="button"
+      onClick={() => logout.mutate()}
+      disabled={logout.isPending}
+      className={cn(
+        "flex items-center gap-2.5 h-8 rounded-gw-sm text-body-sm font-medium text-fg-secondary hover:bg-base-200 hover:text-fg-primary w-full transition-colors duration-100 ease-gw",
+        collapsed ? "justify-center px-0" : "px-2.5"
+      )}
+      title="Sign out"
+    >
+      <LogOut size={16} strokeWidth={1.75} />
+      {!collapsed && <span>Sign out</span>}
+    </button>
   );
 };
 

@@ -10,6 +10,10 @@ const HomePage = lazy(() => import("@/pages/home/page"));
 const BucketsPage = lazy(() => import("@/pages/buckets/page"));
 const ManageBucketPage = lazy(() => import("@/pages/buckets/manage/page"));
 const KeysPage = lazy(() => import("@/pages/keys/page"));
+const LayoutPage = lazy(() => import("@/pages/cluster/layout/page"));
+const WorkersPage = lazy(() => import("@/pages/workers/page"));
+const BlocksPage = lazy(() => import("@/pages/blocks/page"));
+const AdminTokensPage = lazy(() => import("@/pages/admin-tokens/page"));
 
 const router = createBrowserRouter(
   [
@@ -34,6 +38,22 @@ const router = createBrowserRouter(
         {
           path: "cluster",
           Component: ClusterPage,
+        },
+        {
+          path: "cluster/layout",
+          Component: LayoutPage,
+        },
+        {
+          path: "workers",
+          Component: WorkersPage,
+        },
+        {
+          path: "blocks",
+          Component: BlocksPage,
+        },
+        {
+          path: "admin-tokens",
+          Component: AdminTokensPage,
         },
         {
           path: "buckets",

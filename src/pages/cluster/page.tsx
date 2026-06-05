@@ -2,6 +2,7 @@ import Page from "@/context/page-context";
 import { useClusterStatus, useNodeInfo } from "./hooks";
 import { Card } from "react-daisyui";
 import NodesList from "./components/nodes-list";
+import RepairCard from "./repair/repair-card";
 import { useMemo } from "react";
 
 const ClusterPage = () => {
@@ -47,6 +48,10 @@ const ClusterPage = () => {
           <NodesList nodes={nodes} />
         </Card.Body>
       </Card>
+
+      <section className="mt-4 md:mt-8">
+        <RepairCard />
+      </section>
     </div>
   );
 };

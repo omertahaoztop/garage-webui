@@ -1,6 +1,9 @@
 import Page from "@/context/page-context";
 import { useNodesHealth } from "./hooks";
 import StatsCard from "./components/stats-card";
+import SnapshotsCard from "./components/snapshots-card";
+import MetricsCard from "./components/metrics-card";
+import SpeedtestCard from "./components/speedtest-card";
 import {
   Database,
   DatabaseZap,
@@ -118,6 +121,15 @@ const HomePage = () => {
           icon={PieChart}
           value={readableBytes(totalUsage)}
         />
+      </section>
+
+      <section className="mt-6">
+        <MetricsCard />
+      </section>
+
+      <section className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+        <SnapshotsCard />
+        <SpeedtestCard />
       </section>
     </div>
   );

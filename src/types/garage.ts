@@ -30,3 +30,38 @@ export type S3Web = {
   root_domain: string;
   index: string;
 };
+
+// Multi-cluster types (FAZ 1 Sprint 1)
+export type ClusterPublic = {
+  id: string;
+  name: string;
+  adminUrl: string;
+  s3Endpoint: string;
+  s3Region: string;
+  isDefault: boolean;
+  hasToken: boolean;
+};
+
+export type ClustersResponse = {
+  clusters: ClusterPublic[];
+  defaultId: string;
+};
+
+export type ClusterHealth = {
+  status: string; // "healthy" | "degraded" | "unavailable"
+  knownNodes?: number;
+  connectedNodes?: number;
+  storageNodes?: number;
+  storageNodesOk?: number;
+  storageNodesUp?: number;
+  partitions?: number;
+  partitionsQuorum?: number;
+  partitionsAllOk?: number;
+};
+
+export type ClusterTestResult = {
+  id: string;
+  ok: boolean;
+  health?: ClusterHealth;
+  error?: string;
+};

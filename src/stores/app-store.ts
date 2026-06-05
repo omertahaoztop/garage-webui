@@ -1,4 +1,4 @@
-import { Themes } from "@/app/themes";
+import { DEFAULT_THEME, Themes } from "@/app/themes";
 import { createStore } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -9,7 +9,7 @@ type AppState = {
 const store = createStore(
   persist<AppState>(
     () => ({
-      theme: "pastel",
+      theme: DEFAULT_THEME,
     }),
     {
       name: "appdata",
