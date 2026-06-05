@@ -4,7 +4,9 @@ import { Card } from "react-daisyui";
 import { useForm } from "react-hook-form";
 import { loginSchema } from "./schema";
 import { InputField } from "@/components/ui/input";
-import { useLogin } from "./hooks";
+import { useLogin, useOIDCStatus } from "./hooks";
+import { API_URL } from "@/lib/api";
+import { LogIn } from "lucide-react";
 
 export default function LoginPage() {
   const form = useForm({
@@ -15,6 +17,17 @@ export default function LoginPage() {
     },
   });
   const login = useLogin();
+  const oidc = useOIDCStatus();
+
+  const ssoError = (() => {
+    const raw = new URLSearchParams(window.location.search).get("error");
+    if (!raw) return null;
+    try {
+      return atob(raw.replace(/-/g, "+").replace(/_/g, "/"));
+    } catch {
+      return raw;
+    }
+  })();
 
   return (
     <form onSubmit={form.handleSubmit((v) => login.mutate(v))}>
@@ -24,6 +37,12 @@ export default function LoginPage() {
           <p className="text-base-content/60 mb-4">
             Enter your credentials to access the console
           </p>
+
+          {ssoError && (
+            <div className="mb-4 rounded-gw-sm border border-error/40 bg-error/5 px-3 py-2 text-sm text-error">
+              {ssoError}
+            </div>
+          )}
 
           <div className="space-y-4">
             <InputField
@@ -60,6 +79,18 @@ export default function LoginPage() {
               Login
             </Button>
           </Card.Actions>
+
+          {oidc.data?.enabled && (
+            <div className="mt-4 pt-4 border-t border-hairline">
+              <a
+                href={API_URL + "/auth/oidc/login"}
+                className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-gw-sm border border-hairline bg-base-200 hover:bg-base-300 text-sm font-medium transition-colors"
+              >
+                <LogIn size={16} />
+                Sign in with SSO
+              </a>
+            </div>
+          )}
         </Card.Body>
       </Card>
     </form>

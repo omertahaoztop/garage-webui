@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { loginSchema } from "./schema";
 import api from "@/lib/api";
@@ -19,3 +19,16 @@ export const useLogin = () => {
     },
   });
 };
+
+export type OIDCStatus = {
+  enabled: boolean;
+  issuer?: string;
+};
+
+export const useOIDCStatus = () =>
+  useQuery({
+    queryKey: ["oidc-status"],
+    queryFn: () => api.get<OIDCStatus>("/auth/oidc/status"),
+    staleTime: Infinity,
+    retry: false,
+  });

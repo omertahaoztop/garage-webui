@@ -18,8 +18,17 @@ func main() {
 	utils.InitCacheManager()
 	sessionMgr := utils.InitSessionManager()
 
-	if err := utils.Garage.LoadConfig(); err != nil {
-		log.Println("Cannot load garage config!", err)
+	// Initialise cluster registry. Falls back to single-cluster env-var mode
+	// if CLUSTERS_CONFIG is not set; never fatal so the server can still
+	// boot and report the misconfiguration via /api/clusters.
+	if err := utils.LoadClusterRegistry(); err != nil {
+		log.Printf("Cluster registry load error: %v", err)
+	}
+
+	// Initialise OIDC provider (optional). No-op unless OIDC_CONFIG is set and
+	// the file enables OIDC. Never fatal so bcrypt login keeps working.
+	if err := utils.LoadOIDC(); err != nil {
+		log.Printf("OIDC load error: %v", err)
 	}
 
 	basePath := os.Getenv("BASE_PATH")
