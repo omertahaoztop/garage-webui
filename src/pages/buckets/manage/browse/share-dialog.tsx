@@ -18,13 +18,17 @@ const ShareDialog = () => {
   const [domain, setDomain] = useState(bucketName);
 
   const websitePort = config?.s3_web?.bind_addr?.split(":").pop() || "80";
-  const rootDomain = config?.s3_web?.root_domain;
+  // root_domain on a Garage server has a leading dot (e.g. ".web.garage.localhost").
+  // Falling back to "" instead of `undefined` prevents the legacy
+  // `http://webui-test/undefinedundefined` URL from rendering when no
+  // website domain is configured. See gotcha b27.
+  const rootDomain = config?.s3_web?.root_domain ?? "";
 
   const domains = useMemo(
     () => [
       bucketName,
-      bucketName + rootDomain,
-      bucketName + rootDomain + `:${websitePort}`,
+      rootDomain ? bucketName + rootDomain : bucketName,
+      rootDomain ? bucketName + rootDomain + `:${websitePort}` : bucketName,
     ],
     [bucketName, config?.s3_web]
   );
@@ -33,7 +37,11 @@ const ShareDialog = () => {
     setDomain(bucketName);
   }, [domains]);
 
-  const url = "http://" + domain + "/" + data?.prefix + data?.key;
+  // data.prefix / data.key are typed optional — coalesce so we never serialise
+  // the literal string "undefined" into the share URL.
+  const prefix = data?.prefix ?? "";
+  const key = data?.key ?? "";
+  const url = "http://" + domain + "/" + prefix + key;
 
   return (
     <Modal ref={dialogRef} open={isOpen} backdrop>

@@ -1,83 +1,150 @@
+import { useState } from "react";
 import { Dropdown } from "react-daisyui";
-import { Object } from "./types";
-import Button from "@/components/ui/button";
-import { DownloadIcon, EllipsisVertical, Share2, Trash } from "lucide-react";
-import { useDeleteObject } from "./hooks";
-import { useBucketContext } from "../context";
-import { useQueryClient } from "@tanstack/react-query";
+import {
+  Copy as CopyIcon,
+  DownloadIcon,
+  EllipsisVertical,
+  Link2,
+  MoveIcon,
+  Share2,
+  Trash,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import Button from "@/components/ui/button";
 import { handleError } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
+import { useBucketContext } from "../context";
+import { useDeleteObject } from "./hooks";
+import { presignDialog } from "./presign-dialog";
 import { shareDialog } from "./share-dialog";
+import { copyMoveDialog } from "./copy-move-dialog";
+import DeleteConfirmModal from "./delete-confirm-modal";
+import { BrowserObject } from "./types";
 
 type Props = {
   prefix?: string;
-  object: Pick<Object, "objectKey" | "url">;
-  end?: boolean;
+  object: Pick<BrowserObject, "objectKey" | "url">;
 };
 
-const ObjectActions = ({ prefix = "", object, end }: Props) => {
-  const { bucketName } = useBucketContext();
+const ObjectActions = ({ prefix = "", object }: Props) => {
+  const { bucket, bucketName } = useBucketContext();
   const queryClient = useQueryClient();
   const isDirectory = object.objectKey.endsWith("/");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const deleteObject = useDeleteObject(bucketName, {
     onSuccess: () => {
-      toast.success("Object deleted!");
+      toast.success("Object deleted");
       queryClient.invalidateQueries({ queryKey: ["browse", bucketName] });
+      setConfirmOpen(false);
     },
-    onError: handleError,
+    onError: (e) => {
+      handleError(e);
+      setConfirmOpen(false);
+    },
   });
 
   const onDownload = () => {
     window.open(API_URL + object.url + "?dl=1", "_blank");
   };
 
+  const onPresign = () => {
+    presignDialog.open({ key: prefix + object.objectKey });
+  };
+
+  // Legacy bucket-website share — only relevant when website access is enabled.
+  const onWebsiteShare = () => {
+    shareDialog.open({ key: object.objectKey, prefix });
+  };
+
+  const onCopy = () => {
+    copyMoveDialog.open({ key: object.objectKey, prefix, mode: "copy" });
+  };
+
+  const onMove = () => {
+    copyMoveDialog.open({ key: object.objectKey, prefix, mode: "move" });
+  };
+
   const onDelete = () => {
-    if (
-      window.confirm(
-        `Are you sure you want to delete this ${
-          isDirectory ? "directory and its content" : "object"
-        }?`
-      )
-    ) {
-      deleteObject.mutate({
-        key: prefix + object.objectKey,
-        recursive: isDirectory,
-      });
-    }
+    setConfirmOpen(true);
+  };
+
+  const onConfirmDelete = () => {
+    deleteObject.mutate({
+      key: prefix + object.objectKey,
+      recursive: isDirectory,
+    });
   };
 
   return (
-    <td className="!p-0 w-auto">
-      <span className="w-full flex flex-row justify-end pr-2">
-        {!isDirectory && (
-          <Button icon={DownloadIcon} color="ghost" onClick={onDownload} />
-        )}
+    <span
+      className="flex flex-row items-center gap-0.5"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {!isDirectory && (
+        <Button
+          icon={DownloadIcon}
+          color="ghost"
+          size="sm"
+          shape="circle"
+          onClick={onDownload}
+          title="Download"
+        />
+      )}
 
-        <Dropdown end vertical={end ? "top" : "bottom"}>
-          <Dropdown.Toggle button={false}>
-            <Button icon={EllipsisVertical} color="ghost" />
-          </Dropdown.Toggle>
+      <Dropdown end>
+        <Dropdown.Toggle button={false}>
+          <Button
+            icon={EllipsisVertical}
+            color="ghost"
+            size="sm"
+            shape="circle"
+            title="More actions"
+          />
+        </Dropdown.Toggle>
 
-          <Dropdown.Menu className="gap-y-1">
-            <Dropdown.Item
-              onClick={() =>
-                shareDialog.open({ key: object.objectKey, prefix })
-              }
-            >
-              <Share2 /> Share
+        <Dropdown.Menu className="gap-y-1 min-w-[180px] z-30">
+          {!isDirectory && (
+            <Dropdown.Item onClick={onPresign}>
+              <Link2 size={16} /> Share via link
             </Dropdown.Item>
-            <Dropdown.Item
-              className="text-error bg-error/10"
-              onClick={onDelete}
-            >
-              <Trash /> Delete
+          )}
+          {!isDirectory && bucket?.websiteAccess && (
+            <Dropdown.Item onClick={onWebsiteShare}>
+              <Share2 size={16} /> Public website URL
             </Dropdown.Item>
-          </Dropdown.Menu>
-        </Dropdown>
-      </span>
-    </td>
+          )}
+          {!isDirectory && (
+            <Dropdown.Item onClick={onCopy}>
+              <CopyIcon size={16} /> Copy to…
+            </Dropdown.Item>
+          )}
+          {!isDirectory && (
+            <Dropdown.Item onClick={onMove}>
+              <MoveIcon size={16} /> Move to…
+            </Dropdown.Item>
+          )}
+          <Dropdown.Item
+            className="text-error bg-error/10 hover:bg-error/20"
+            onClick={onDelete}
+          >
+            <Trash size={16} /> Delete
+          </Dropdown.Item>
+        </Dropdown.Menu>
+      </Dropdown>
+
+      <DeleteConfirmModal
+        open={confirmOpen}
+        title={`Delete ${isDirectory ? "folder" : "object"}?`}
+        description={`Are you sure you want to delete "${object.objectKey}"?${
+          isDirectory ? " All contents will be removed." : ""
+        }`}
+        isPending={deleteObject.isPending}
+        onConfirm={onConfirmDelete}
+        onCancel={() => setConfirmOpen(false)}
+      />
+    </span>
   );
 };
 

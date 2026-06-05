@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Home, LucideIcon, Search, X } from "lucide-react";
 import { Fragment } from "react/jsx-runtime";
 import { Input } from "react-daisyui";
+import FilterPanel, { FilterState } from "./filter-panel";
 
 type Props = {
   curPrefix: number;
@@ -11,6 +12,8 @@ type Props = {
   actions?: React.ReactNode;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  filterState?: FilterState;
+  onFilterChange?: (state: FilterState) => void;
 };
 
 const ObjectListNavigator = ({
@@ -20,6 +23,8 @@ const ObjectListNavigator = ({
   actions,
   searchQuery = "",
   onSearchChange,
+  filterState,
+  onFilterChange,
 }: Props) => {
   const onGoBack = () => {
     if (curPrefix >= 0) setCurPrefix(curPrefix - 1);
@@ -100,6 +105,9 @@ const ObjectListNavigator = ({
               </button>
             )}
           </div>
+          {filterState && onFilterChange && (
+            <FilterPanel state={filterState} onChange={onFilterChange} />
+          )}
         </div>
       )}
     </div>
