@@ -1,4 +1,5 @@
 import * as utils from "@/lib/utils";
+import clusterStore from "@/stores/cluster-store";
 import { BASE_PATH } from "./consts";
 
 type FetchOptions = Omit<RequestInit, "headers" | "body"> & {
@@ -25,8 +26,19 @@ const api = {
     const baseUrl = options?.admin ? API_URL + "/admin" : API_URL;
     const _url = new URL(baseUrl + url, window.location.origin);
 
+    // Inject active cluster id so the backend routes against the right cluster.
+    // Empty => backend falls back to its default cluster.
+    const activeClusterId = clusterStore.getActiveId();
+    if (activeClusterId) {
+      headers["X-Cluster-Id"] = activeClusterId;
+    }
+
     if (options?.params) {
       Object.entries(options.params).forEach(([key, value]) => {
+        // Skip undefined/null params so they don't serialize as the literal
+        // string "undefined" / "null" into the URL. This is a defensive guard
+        // for hooks that build query objects with optional fields.
+        if (value === undefined || value === null) return;
         _url.searchParams.set(key, String(value));
       });
     }
