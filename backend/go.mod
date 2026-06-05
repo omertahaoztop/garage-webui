@@ -1,8 +1,6 @@
 module khairul169/garage-webui
 
-go 1.23.0
-
-toolchain go1.24.0
+go 1.25.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.30.4
@@ -12,10 +10,17 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/pelletier/go-toml/v2 v2.2.2
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/alexedwards/scs/v2 v2.8.0 // indirect
+	github.com/coreos/go-oidc/v3 v3.18.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
+)
+
+require (
+	github.com/alexedwards/scs/v2 v2.8.0
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.4 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.16 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.16 // indirect
