@@ -6,13 +6,16 @@ A simple admin web UI for [Garage](https://garagehq.deuxfleurs.fr/), a self-host
 
 [ [Screenshots](misc/SCREENSHOTS.md) | [Install Garage](https://garagehq.deuxfleurs.fr/documentation/quick-start/) | [Garage Git](https://git.deuxfleurs.fr/Deuxfleurs/garage) ]
 
+> **Target version: [Garage v2.3+](https://garagehq.deuxfleurs.fr/download/).** This fork talks to Garage's `/v2/<Operation>` admin endpoints and tracks the v2 API surface. v1 endpoints are not used.
+
 ## Features
 
-- Garage health status
-- Cluster & layout management
+- Garage cluster health & layout management
 - Create, update, or view bucket information
-- Integrated objects/bucket browser
+- Integrated object browser (search, upload, download, delete)
 - Create & assign access keys
+- **Multi-cluster** support via a single binary — switch between clusters from the sidebar dropdown (`CLUSTERS_CONFIG=clusters.yaml`)
+- Authentication-disabled mode for trusted local deployments, optional bcrypt user/pass
 
 ## Installation
 
@@ -155,11 +158,12 @@ Configurable envs:
 - `PORT`: Web UI server port. Defaults to `3919`.
 - `HOST`: Server host. Defaults to `0.0.0.0`.
 - `BASE_PATH`: Base path or prefix for Web UI.
-- `API_BASE_URL`: Garage admin API endpoint URL (overrides config file).
-- `API_ADMIN_KEY`: Admin API key (overrides config file).
-- `S3_REGION`: S3 Region (overrides config file). Defaults to `garage`.
-- `S3_ENDPOINT_URL`: S3 Endpoint URL (overrides config file).
+- `API_BASE_URL`: Garage admin API endpoint URL (overrides config file). Single-cluster mode only.
+- `API_ADMIN_KEY`: Admin API key (overrides config file). Single-cluster mode only.
+- `S3_REGION`: S3 Region (overrides config file). Defaults to `garage`. Single-cluster mode only.
+- `S3_ENDPOINT_URL`: S3 Endpoint URL (overrides config file). Single-cluster mode only.
 - `AUTH_USER_PASS`: Enable authentication. Format: `username:bcrypt_hash`.
+- `CLUSTERS_CONFIG`: Path to a multi-cluster YAML file. When set, enables multi-cluster mode and the per-cluster env vars above are ignored. See [Multi-Cluster Mode](#multi-cluster-mode) below.
 
 ### Authentication
 
@@ -203,6 +207,69 @@ Add to the `[Service]` section:
 ```
 Environment="AUTH_USER_PASS=admin:$2a$10$YourBcryptHashHere..."
 ```
+
+### Deployment Topologies
+
+Garage is itself a geo-distributed cluster — the web UI should be deployed the same way: as close to its node as possible, with an edge load balancer routing user traffic.
+
+#### Recommended: Per-Node Sidecar + Edge LB
+
+Run **one `garage-webui` sidecar per geographic Garage node** (IST, AMS, FRA, …) on the same host or pod. Each sidecar talks only to its colocated `localhost:3903` admin endpoint. Put a global anycast LB (Cloudflare LB, AWS Global Accelerator, …) in front, with the per-region sidecar URLs as origins.
+
+```
+                ┌────── Cloudflare LB ──────┐
+                │  origin pool round-robin  │
+                └─┬─────────┬─────────┬─────┘
+                  │         │         │
+            webui1 (IST)  webui2 (AMS) webui3 (FRA)
+                  │         │         │
+            garage1:3903  garage2:3903 garage3:3903
+                  └─── gossip + RPC ring ───┘
+```
+
+Each sidecar runs a single-cluster instance (env-var mode), so the **cluster switcher in the UI auto-hides** and the operator UX is identical regardless of which sidecar handled the request.
+
+A ready-to-use local stand-in (3 sidecars + nginx LB) is available under [`docker/cluster/`](docker/cluster/README.md):
+
+```sh
+$ docker compose -f docker-compose.cluster.yml up -d --build
+$ ./docker/cluster/init.sh        # layout + test bucket
+$ open http://localhost:8080      # browse via LB (Cloudflare stand-in)
+```
+
+#### Advanced: Multi-Cluster Pane of Glass (CLUSTERS_CONFIG)
+
+If you operate **multiple independent Garage clusters** (e.g. tenant isolation, dev / staging / prod) and want one operator pane for all of them, run a single `garage-webui` instance fed a YAML registry via `CLUSTERS_CONFIG`:
+
+```yaml
+default: prod-dc1
+clusters:
+  - id: prod-dc1
+    name: "Production DC1 (Istanbul)"
+    admin_url: http://garage-dc1:3903
+    admin_token_env: GARAGE_DC1_TOKEN   # or `admin_token: <plaintext>` (dev only)
+    s3_endpoint: http://garage-dc1:3900
+    s3_region: garage
+  - id: staging
+    name: "Staging Cluster"
+    admin_url: http://garage-stg:3903
+    admin_token_env: GARAGE_STG_TOKEN
+    s3_endpoint: http://garage-stg:3900
+    s3_region: garage
+```
+
+```sh
+$ GARAGE_DC1_TOKEN=… GARAGE_STG_TOKEN=… CLUSTERS_CONFIG=/etc/garage-webui/clusters.yaml ./garage-webui
+```
+
+API endpoints accept an `X-Cluster-Id` request header to scope a call. When omitted, the registry's `default` cluster is used.
+
+- `GET /api/clusters` → list of clusters (tokens redacted, `hasToken` boolean returned instead).
+- `GET /api/clusters/{id}/test` → live `/v2/GetClusterHealth` probe for the selected cluster.
+
+The sidebar dropdown shows a live health dot per cluster; selecting one rebinds all subsequent API calls. The dropdown is hidden when only one cluster is configured (single-cluster sidecar mode).
+
+> ⚠️ Don't use `CLUSTERS_CONFIG` to "load-balance" replicas of the same cluster — that's what the sidecar topology + edge LB above is for.
 
 ### Running
 
