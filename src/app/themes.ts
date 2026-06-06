@@ -1,21 +1,10 @@
 // Theme list shown in the sidebar dropdown.
-// First two are custom (Garage Dark/Light, Linear+Vercel hybrid).
-// Rest are DaisyUI built-ins kept for legacy users — can be trimmed later.
+// Only the two custom themes are offered: the rest of DaisyUI's built-ins do
+// not define the --gw-* design tokens this UI relies on, so they rendered with
+// unreadable (unset) foreground colors. Keep the palette to what we actually
+// style.
 
-export const themes = [
-  "garage-dark",
-  "garage-light",
-  "dark",
-  "dracula",
-  "night",
-  "corporate",
-  "winter",
-  "pastel",
-  "cupcake",
-  "dim",
-  "nord",
-  "valentine",
-] as const;
+export const themes = ["garage-dark", "garage-light"] as const;
 
 export type Themes = (typeof themes)[number];
 
@@ -26,14 +15,4 @@ export const DEFAULT_THEME: Themes = "garage-dark";
 export const THEME_LABELS: Record<Themes, string> = {
   "garage-dark": "Garage Dark",
   "garage-light": "Garage Light",
-  dark: "Dark",
-  dracula: "Dracula",
-  night: "Night",
-  corporate: "Corporate",
-  winter: "Winter",
-  pastel: "Pastel",
-  cupcake: "Cupcake",
-  dim: "Dim",
-  nord: "Nord",
-  valentine: "Valentine",
 };
