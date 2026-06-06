@@ -6,13 +6,32 @@ import (
 	"net/http"
 )
 
-// authDisabled reports whether the operator has disabled authentication by
-// leaving AUTH_USER_PASS unset. In that mode every request is treated as
-// authenticated and admin-capable. OIDC integration in Faz 1 Sprint 2 will
-// extend this with claims-based authorization.
+// authDisabled reports whether authentication is fully disabled.
+//
+// Auth is ENABLED (required) when ANY provider is configured:
+//   - AUTH_USER_PASS  (bcrypt admin), or
+//   - OIDC            (OIDC_CONFIG with enabled: true), or
+//   - AUTH_REQUIRED=true (force fail-closed even with no provider).
+//
+// Only when NONE are set does the app run open (dev convenience). This
+// prevents the footgun where a missing AUTH_USER_PASS silently exposes the
+// entire admin API to anonymous callers.
 func authDisabled() bool {
-	return utils.GetEnv("AUTH_USER_PASS", "") == ""
+	if utils.GetEnv("AUTH_USER_PASS", "") != "" {
+		return false
+	}
+	if utils.GetEnv("AUTH_REQUIRED", "") == "true" {
+		return false
+	}
+	if utils.OIDC != nil && utils.OIDC.Enabled() {
+		return false
+	}
+	return true
 }
+
+// AuthDisabled is the exported form so routers (e.g. /auth/status) report the
+// same enabled/disabled verdict the middleware enforces.
+func AuthDisabled() bool { return authDisabled() }
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

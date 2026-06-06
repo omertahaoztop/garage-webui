@@ -79,6 +79,10 @@ func (o *OIDCAuth) Callback(w http.ResponseWriter, r *http.Request) {
 	utils.Session.SetUserSession(r, utils.UserSession{
 		AccessKeyID: identity,
 		IsAdmin:     isAdmin,
+		// Non-admin OIDC identities have NO S3 bucket access by default (no S3
+		// key is associated with an OIDC login). Explicitly empty, never nil,
+		// so every bucket check denies cleanly. Admins bypass the check anyway.
+		AccessibleBuckets: []string{},
 	})
 
 	// Land on the SPA root; the session cookie carries auth.

@@ -51,10 +51,10 @@ func HandleApiRouter() *http.ServeMux {
 	// Share token creation requires auth + bucket access.
 	userRouter.HandleFunc("POST /share/create", share.CreateShare)
 
-	// Admin tokens — current-token info is readable by any authenticated user;
-	// list/create/update/delete are admin-gated below via adminRouter aliases.
+	// Admin tokens declared here; ALL admin-token routes (incl. /current) are
+	// admin-only and registered on adminRouter below. /current leaks the admin
+	// token's scope/expiry, so a non-admin must never reach it.
 	adminTokens := &AdminTokens{}
-	userRouter.HandleFunc("GET /admin-tokens/current", adminTokens.Current)
 
 	// Object inspector (forensic) — read-only, available to authenticated users
 	// who can already browse the bucket.
@@ -76,6 +76,7 @@ func HandleApiRouter() *http.ServeMux {
 	adminRouter.HandleFunc("GET /snapshot/nodes", snapshot.ListNodes)
 
 	// Admin token CRUD (admin only).
+	adminRouter.HandleFunc("GET /admin-tokens/current", adminTokens.Current)
 	adminRouter.HandleFunc("GET /admin-tokens", adminTokens.List)
 	adminRouter.HandleFunc("POST /admin-tokens", adminTokens.Create)
 	adminRouter.HandleFunc("POST /admin-tokens/{id}", adminTokens.Update)

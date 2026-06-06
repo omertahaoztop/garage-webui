@@ -4,8 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"khairul169/garage-webui/schema"
+	"khairul169/garage-webui/middleware"
 	"khairul169/garage-webui/utils"
 	"net/http"
 	"strings"
@@ -92,60 +91,21 @@ func (c *Auth) Login(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		bodyData, err := cluster.Fetch(fmt.Sprintf("/v2/GetKeyInfo?id=%s", accessKeyID), &utils.FetchOptions{})
-		if err != nil {
-			utils.Session.Set(r, "authenticated", true)
-			utils.Session.SetUserSession(r, utils.UserSession{
-				AccessKeyID:       accessKeyID,
-				IsAdmin:           false,
-				AccessibleBuckets: accessibleBuckets,
-			})
-			utils.ResponseSuccess(w, map[string]interface{}{
-				"authenticated": true,
-				"isAdmin":       false,
-			})
-			return
-		}
-
-		var keyInfo schema.KeyElement
-		if err := json.Unmarshal(bodyData, &keyInfo); err == nil {
-			isAdmin := false
-			allBuckets, _ := cluster.Fetch("/v2/ListBuckets", &utils.FetchOptions{})
-			if allBuckets != nil {
-				var buckets []schema.GetBucketsRes
-				if json.Unmarshal(allBuckets, &buckets) == nil {
-					for _, bucket := range buckets {
-						bucketInfo, _ := cluster.Fetch(fmt.Sprintf("/v2/GetBucketInfo?id=%s", bucket.ID), &utils.FetchOptions{})
-						if bucketInfo != nil {
-							var bucketData schema.Bucket
-							if json.Unmarshal(bucketInfo, &bucketData) == nil {
-								for _, k := range bucketData.Keys {
-									if k.AccessKeyID == accessKeyID && k.Permissions.Owner {
-										isAdmin = true
-										break
-									}
-								}
-							}
-						}
-						if isAdmin {
-							break
-						}
-					}
-				}
-			}
-
-			utils.Session.Set(r, "authenticated", true)
-			utils.Session.SetUserSession(r, utils.UserSession{
-				AccessKeyID:       accessKeyID,
-				IsAdmin:           isAdmin,
-				AccessibleBuckets: accessibleBuckets,
-			})
-			utils.ResponseSuccess(w, map[string]interface{}{
-				"authenticated": true,
-				"isAdmin":       isAdmin,
-			})
-			return
-		}
+		// S3-key login NEVER grants cluster-admin. Admin is reserved exclusively
+		// for the AUTH_USER_PASS identity (checked above). A bucket Owner is a
+		// data-plane owner, NOT a control-plane admin — promoting them would let
+		// any tenant reach /admin/* (layout, repair, admin-tokens, etc.).
+		utils.Session.Set(r, "authenticated", true)
+		utils.Session.SetUserSession(r, utils.UserSession{
+			AccessKeyID:       accessKeyID,
+			IsAdmin:           false,
+			AccessibleBuckets: accessibleBuckets,
+		})
+		utils.ResponseSuccess(w, map[string]interface{}{
+			"authenticated": true,
+			"isAdmin":       false,
+		})
+		return
 	}
 
 	utils.ResponseErrorStatus(w, errors.New("invalid credentials"), 401)
@@ -157,7 +117,7 @@ func (c *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Auth) GetStatus(w http.ResponseWriter, r *http.Request) {
-	enabled := utils.GetEnv("AUTH_USER_PASS", "") != ""
+	enabled := !middleware.AuthDisabled()
 
 	// Auth-disabled mode: treat every caller as an authenticated admin so that
 	// the SPA's main-layout auth gate does not bounce them to /auth/login.

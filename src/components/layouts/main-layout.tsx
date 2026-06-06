@@ -122,8 +122,9 @@ const Header = ({ onSidebarOpen }: HeaderProps) => {
 };
 
 const ScopeBadge = () => {
-  const { data } = useCurrentToken();
-  if (!data) return null;
+  const { isAdmin } = useAuth();
+  const { data } = useCurrentToken({ enabled: isAdmin });
+  if (!isAdmin || !data) return null;
   const scopes = data.scope ?? [];
   const isFull = scopes.includes("*");
   const label = isFull ? "full access" : `${scopes.length} scope${scopes.length === 1 ? "" : "s"}`;

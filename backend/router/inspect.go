@@ -65,6 +65,21 @@ func (in *Inspect) Object(w http.ResponseWriter, r *http.Request) {
 	if bucketRef == "" {
 		bucketRef = r.URL.Query().Get("bucket")
 	}
+
+	// Authorization: non-admins may only inspect buckets they can access.
+	// Their AccessibleBuckets list holds global aliases (names), so require a
+	// name here and gate on it. A raw bucketId from a non-admin is rejected to
+	// prevent enumerating buckets by id outside their scope.
+	if user := utils.GetUserSession(r); user != nil && !user.IsAdmin {
+		if len(bucketRef) == 64 && isHex(bucketRef) {
+			utils.ResponseErrorStatus(w, errBucketAccessDenied, http.StatusForbidden)
+			return
+		}
+		if !requireBucketAccess(w, r, bucketRef) {
+			return
+		}
+	}
+
 	bucketID, err := resolveBucketID(cluster, bucketRef)
 	if err != nil {
 		utils.ResponseErrorStatus(w, err, http.StatusBadRequest)

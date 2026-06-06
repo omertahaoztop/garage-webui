@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"khairul169/garage-webui/middleware"
 	"khairul169/garage-webui/router"
 	"khairul169/garage-webui/ui"
 	"khairul169/garage-webui/utils"
@@ -29,6 +30,14 @@ func main() {
 	// the file enables OIDC. Never fatal so bcrypt login keeps working.
 	if err := utils.LoadOIDC(); err != nil {
 		log.Printf("OIDC load error: %v", err)
+	}
+
+	// Loud startup warning when authentication is fully open. Operators who
+	// forget AUTH_USER_PASS would otherwise expose the entire admin API to
+	// anonymous callers without any signal. Set AUTH_REQUIRED=true to fail
+	// closed even before configuring a provider.
+	if middleware.AuthDisabled() {
+		log.Printf("⚠️  SECURITY: authentication is DISABLED (no AUTH_USER_PASS, no OIDC, AUTH_REQUIRED!=true). Every caller has FULL ADMIN access. Do NOT expose this beyond a trusted network.")
 	}
 
 	basePath := os.Getenv("BASE_PATH")

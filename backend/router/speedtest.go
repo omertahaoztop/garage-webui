@@ -45,6 +45,13 @@ func (st *Speedtest) Run(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Authorization: non-admins may only speedtest buckets they can access.
+	// Without this a tenant could write/delete .speedtest objects in any bucket
+	// (the backend uses the bucket's own RW key, not the user's).
+	if !requireBucketAccess(w, r, bucket) {
+		return
+	}
+
 	var size int64 = 1 << 20
 	if s := r.URL.Query().Get("size"); s != "" {
 		var parsed int64

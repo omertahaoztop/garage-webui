@@ -26,10 +26,11 @@ export const useAdminTokens = () =>
       api.get<{ tokens: AdminTokenInfo[] }>("/admin-tokens", { admin: true }),
   });
 
-export const useCurrentToken = () =>
+export const useCurrentToken = (options?: { enabled?: boolean }) =>
   useQuery({
     queryKey: ["admin-tokens", "current"],
-    queryFn: () => api.get<AdminTokenInfo>("/admin-tokens/current"),
+    queryFn: () => api.get<AdminTokenInfo>("/admin-tokens/current", { admin: true }),
+    enabled: options?.enabled !== undefined ? options.enabled : true,
     retry: false,
   });
 
