@@ -1,0 +1,25 @@
+garage-webui
+Copyright (c) 2026 Ömer Taha Öztop and contributors
+
+This product is licensed under the GNU General Public License v3.0 (see LICENSE).
+
+----------------------------------------------------------------------
+Third-party / upstream attribution
+----------------------------------------------------------------------
+
+This project is a fork of and incorporates source code from:
+
+  garage-webui
+  Copyright (c) 2024 Khairul Hidayat
+  Originally licensed under the MIT License.
+  https://github.com/khairul169/garage-webui
+
+The original MIT license text is preserved in LICENSE.MIT, as required by
+its terms. The MIT License is compatible with the GNU GPL; the combined
+work is distributed under the terms of the GPLv3 while the original MIT
+notice and permission text are retained for the portions derived from the
+upstream project.
+
+This software bundles third-party open-source dependencies (Go modules and
+npm packages) under their respective licenses. See go.mod / go.sum and
+package.json / pnpm-lock.yaml for the full dependency list.

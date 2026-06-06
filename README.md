@@ -353,3 +353,11 @@ $ CONFIG_PATH=./garage.toml ./garage-webui
 Make sure you are using the latest version of Garage. If the data cannot be loaded, please check whether your instance of Garage has the admin API enabled and the ports are accessible.
 
 If you encounter any problems, please do not hesitate to submit an issue [here](https://github.com/khairul169/garage-webui/issues). You can describe the problem and attach the error logs.
+
+## License
+
+This project is licensed under the **GNU General Public License v3.0** — see [LICENSE](LICENSE).
+
+It is a fork of [khairul169/garage-webui](https://github.com/khairul169/garage-webui)
+(MIT). The upstream MIT license is GPL-compatible and its text is preserved in
+[LICENSE.MIT](LICENSE.MIT); attribution is recorded in [NOTICE](NOTICE).
