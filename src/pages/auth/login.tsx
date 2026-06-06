@@ -48,25 +48,17 @@ export default function LoginPage() {
             <InputField
               form={form}
               name="username"
-              title="Username or Access Key ID"
-              placeholder="Enter username or Access Key ID"
+              title="Access Key"
+              placeholder="Access Key ID (or admin username)"
             />
 
             <InputField
               form={form}
               name="password"
-              title="Password or Secret Access Key"
+              title="Secret Key"
               type="password"
-              placeholder="Enter password or Secret Access Key"
+              placeholder="Secret Access Key (or admin password)"
             />
-
-            <div className="text-xs text-base-content/60">
-              <p>You can login with:</p>
-              <ul className="list-disc list-inside mt-1 space-y-1">
-                <li>Admin username and password</li>
-                <li>Access Key ID and Secret Access Key</li>
-              </ul>
-            </div>
           </div>
 
           <Card.Actions className="mt-4">
