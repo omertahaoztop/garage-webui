@@ -124,3 +124,23 @@ export const useRevertLayout = () => {
     },
   });
 };
+
+export type SkipDeadNodesResult = {
+  ackUpdated: string[];
+  syncUpdated: string[];
+};
+
+export const useSkipDeadNodes = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { version: number; allowMissingData: boolean }) =>
+      api.post<SkipDeadNodesResult>("/layout/skip-dead-nodes", {
+        admin: true,
+        body: vars,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["layout"] });
+      qc.invalidateQueries({ queryKey: ["layout-history"] });
+    },
+  });
+};

@@ -1,7 +1,7 @@
 import Page from "@/context/page-context";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, GitBranch, Check, Undo2, FlaskConical, History } from "lucide-react";
+import { Loader2, GitBranch, Check, Undo2, FlaskConical, History, SkipForward, AlertTriangle, X } from "lucide-react";
 import { readableBytes, cn } from "@/lib/utils";
 import {
   useClusterLayout,
@@ -9,7 +9,10 @@ import {
   usePreviewLayout,
   useApplyLayout,
   useRevertLayout,
+  useSkipDeadNodes,
+  useStageLayout,
   type PreviewResult,
+  type NodeRoleChange,
   type ComputationStat,
 } from "./hooks";
 
@@ -19,8 +22,11 @@ const LayoutPage = () => {
   const preview = usePreviewLayout();
   const apply = useApplyLayout();
   const revert = useRevertLayout();
+  const skipDead = useSkipDeadNodes();
+  const stage = useStageLayout();
 
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
+  const [showSkipDead, setShowSkipDead] = useState(false);
 
   const layout = layoutQuery.data;
   const hasStaged =
@@ -90,7 +96,7 @@ const LayoutPage = () => {
       ) : (
         <>
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-6">
-            <CurrentRoles layout={layout} />
+            <CurrentRoles layout={layout} onStage={stage.mutateAsync} staging={stage.isPending} />
             <StagedChanges layout={layout} />
           </section>
 
@@ -158,13 +164,47 @@ const LayoutPage = () => {
             versions={historyQuery.data?.versions ?? []}
             current={historyQuery.data?.currentVersion}
           />
+
+          <DangerZone onSkipDead={() => setShowSkipDead(true)} />
         </>
+      )}
+
+      {showSkipDead && layout && (
+        <SkipDeadModal
+          currentVersion={layout.version}
+          pending={skipDead.isPending}
+          onClose={() => setShowSkipDead(false)}
+          onConfirm={async (allowMissingData) => {
+            try {
+              const res = await skipDead.mutateAsync({
+                version: layout.version,
+                allowMissingData,
+              });
+              toast.success(
+                `Skipped dead nodes: ${res.ackUpdated.length} ack, ${res.syncUpdated.length} sync updated`
+              );
+              setShowSkipDead(false);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : "Skip dead nodes failed");
+            }
+          }}
+        />
       )}
     </div>
   );
 };
 
-const CurrentRoles = ({ layout }: { layout: ReturnType<typeof useClusterLayout>["data"] }) => (
+type StageFn = (body: { roles?: NodeRoleChange[] }) => Promise<unknown>;
+
+const CurrentRoles = ({
+  layout,
+  onStage,
+  staging,
+}: {
+  layout: ReturnType<typeof useClusterLayout>["data"];
+  onStage: StageFn;
+  staging: boolean;
+}) => (
   <div className="rounded-gw-md border border-hairline bg-base-100 p-4">
     <h3 className="text-sm font-semibold text-fg-primary mb-3">
       Current Roles ({layout?.roles.length ?? 0})
@@ -174,26 +214,142 @@ const CurrentRoles = ({ layout }: { layout: ReturnType<typeof useClusterLayout>[
     ) : (
       <ul className="space-y-2">
         {layout.roles.map((role) => (
-          <li
-            key={role.id}
-            className="rounded-gw-sm border border-hairline bg-base-200/40 px-3 py-2"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-mono text-xs truncate">{role.id.slice(0, 16)}</span>
-              <span className="text-xs px-1.5 py-0.5 rounded bg-base-300 text-base-content/70">
-                {role.zone}
-              </span>
-            </div>
-            <div className="flex items-center gap-3 mt-1 text-xs text-base-content/60">
-              <span>cap: {role.capacity ? readableBytes(role.capacity) : "gateway"}</span>
-              {role.tags?.length > 0 && <span>tags: {role.tags.join(", ")}</span>}
-            </div>
-          </li>
+          <RoleRow key={role.id} role={role} onStage={onStage} staging={staging} />
         ))}
       </ul>
     )}
   </div>
 );
+
+type Role = NonNullable<ReturnType<typeof useClusterLayout>["data"]>["roles"][number];
+
+const RoleRow = ({
+  role,
+  onStage,
+  staging,
+}: {
+  role: Role;
+  onStage: StageFn;
+  staging: boolean;
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [zone, setZone] = useState(role.zone);
+  const [capacityGB, setCapacityGB] = useState(
+    role.capacity ? String(Math.round(role.capacity / 1_000_000_000)) : ""
+  );
+  const [tags, setTags] = useState((role.tags ?? []).join(", "));
+
+  const save = async () => {
+    const cap = capacityGB.trim() === "" ? null : Number(capacityGB) * 1_000_000_000;
+    if (cap !== null && (Number.isNaN(cap) || cap <= 0)) {
+      toast.error("Capacity must be a positive number (GB) or empty for gateway");
+      return;
+    }
+    const change: NodeRoleChange = {
+      id: role.id,
+      zone: zone.trim(),
+      capacity: cap,
+      tags: tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
+    };
+    try {
+      await onStage({ roles: [change] });
+      toast.success("Role change staged");
+      setEditing(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Stage failed");
+    }
+  };
+
+  const remove = async () => {
+    if (!window.confirm(`Stage removal of node ${role.id.slice(0, 16)}?`)) return;
+    try {
+      await onStage({ roles: [{ id: role.id, remove: true }] });
+      toast.success("Node removal staged");
+      setEditing(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Stage failed");
+    }
+  };
+
+  return (
+    <li className="rounded-gw-sm border border-hairline bg-base-200/40 px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-xs truncate">{role.id.slice(0, 16)}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-1.5 py-0.5 rounded bg-base-300 text-base-content/70">
+            {role.zone}
+          </span>
+          <button
+            type="button"
+            onClick={() => setEditing((v) => !v)}
+            className="text-xs text-primary hover:underline"
+          >
+            {editing ? "Cancel" : "Edit"}
+          </button>
+        </div>
+      </div>
+
+      {!editing ? (
+        <div className="flex items-center gap-3 mt-1 text-xs text-base-content/60">
+          <span>cap: {role.capacity ? readableBytes(role.capacity) : "gateway"}</span>
+          {role.tags?.length > 0 && <span>tags: {role.tags.join(", ")}</span>}
+        </div>
+      ) : (
+        <div className="mt-2 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs">
+              <span className="text-base-content/50 block mb-0.5">Zone</span>
+              <input
+                value={zone}
+                onChange={(e) => setZone(e.target.value)}
+                className="w-full h-8 px-2 rounded-gw-sm border border-hairline bg-base-100 text-xs"
+              />
+            </label>
+            <label className="text-xs">
+              <span className="text-base-content/50 block mb-0.5">Capacity (GB, empty=gateway)</span>
+              <input
+                value={capacityGB}
+                onChange={(e) => setCapacityGB(e.target.value)}
+                placeholder="gateway"
+                className="w-full h-8 px-2 rounded-gw-sm border border-hairline bg-base-100 text-xs"
+              />
+            </label>
+          </div>
+          <label className="text-xs block">
+            <span className="text-base-content/50 block mb-0.5">Tags (comma-separated)</span>
+            <input
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className="w-full h-8 px-2 rounded-gw-sm border border-hairline bg-base-100 text-xs"
+            />
+          </label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={save}
+              disabled={staging}
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-gw-sm text-xs font-medium bg-primary text-primary-content hover:bg-primary/90 disabled:opacity-60"
+            >
+              {staging ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+              Stage change
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={staging}
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-gw-sm text-xs font-medium border border-error/40 text-error hover:bg-error/10 disabled:opacity-60"
+            >
+              Remove node
+            </button>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+};
 
 const StagedChanges = ({ layout }: { layout: ReturnType<typeof useClusterLayout>["data"] }) => {
   const changes = layout?.stagedRoleChanges ?? [];
@@ -313,6 +469,102 @@ const LayoutHistoryTimeline = ({
         ))}
       </ul>
     </section>
+  );
+};
+
+const DangerZone = ({ onSkipDead }: { onSkipDead: () => void }) => (
+  <section className="mt-8 rounded-gw-md border border-error/30 bg-error/5 p-4">
+    <h3 className="text-sm font-semibold text-error mb-1 inline-flex items-center gap-2">
+      <AlertTriangle size={14} /> Danger Zone
+    </h3>
+    <p className="text-xs text-base-content/60 mb-3">
+      Force a layout transition past unresponsive nodes. Only use this when a node is
+      permanently lost and the cluster is stuck.
+    </p>
+    <button
+      type="button"
+      onClick={onSkipDead}
+      className="inline-flex items-center gap-2 h-9 px-3 rounded-gw-sm text-sm font-medium border border-error/40 text-error hover:bg-error/10"
+    >
+      <SkipForward size={14} /> Skip Dead Nodes…
+    </button>
+  </section>
+);
+
+const SkipDeadModal = ({
+  currentVersion,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  currentVersion: number;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: (allowMissingData: boolean) => void;
+}) => {
+  const [allowMissingData, setAllowMissingData] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        className="relative w-full max-w-md bg-base-100 rounded-gw-md shadow-xl p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold inline-flex items-center gap-2 text-error">
+            <AlertTriangle size={18} /> Skip Dead Nodes
+          </h3>
+          <button onClick={onClose} className="text-base-content/50 hover:text-base-content">
+            <X size={18} />
+          </button>
+        </div>
+        <p className="text-sm text-base-content/70 mb-3">
+          This forces update trackers past unresponsive nodes for layout
+          <span className="font-mono"> v{currentVersion}</span>. Use only when a node is
+          permanently dead and blocking layout convergence.
+        </p>
+        <label className="flex items-start gap-2 text-sm mb-3">
+          <input
+            type="checkbox"
+            checked={allowMissingData}
+            onChange={(e) => setAllowMissingData(e.target.checked)}
+            className="checkbox checkbox-sm mt-0.5"
+          />
+          <span>
+            Allow missing data
+            <span className="block text-xs text-error">
+              ⚠ May cause permanent data loss if a quorum cannot be reached among remaining nodes.
+            </span>
+          </span>
+        </label>
+        <p className="text-xs text-base-content/60 mb-1">
+          Type <span className="font-mono font-semibold">SKIP</span> to confirm:
+        </p>
+        <input
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          className="w-full h-9 px-2 rounded-gw-sm border border-error/40 bg-base-200 text-sm mb-4"
+          placeholder="SKIP"
+        />
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="h-9 px-3 rounded-gw-sm text-sm border border-hairline bg-base-100 hover:bg-base-200"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(allowMissingData)}
+            disabled={confirmText !== "SKIP" || pending}
+            className="inline-flex items-center gap-2 h-9 px-3 rounded-gw-sm text-sm font-medium bg-error text-error-content hover:bg-error/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {pending ? <Loader2 size={14} className="animate-spin" /> : <SkipForward size={14} />}
+            Skip Dead Nodes
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 

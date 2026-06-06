@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Loader2, Wrench, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRepairTypes, useLaunchRepair } from "./hooks";
+import { useSnapshotNodes } from "@/pages/home/hooks";
 
 const SCRUB_COMMANDS = ["start", "pause", "resume", "cancel"];
 
@@ -11,6 +12,9 @@ const RepairCard = () => {
   const launch = useLaunchRepair();
   const [selected, setSelected] = useState<string>("");
   const [scrubCmd, setScrubCmd] = useState("start");
+  const [node, setNode] = useState("*");
+  const nodesQuery = useSnapshotNodes();
+  const nodes = nodesQuery.data?.nodes ?? [];
 
   const types = typesQuery.data?.types ?? [];
 
@@ -21,14 +25,15 @@ const RepairCard = () => {
     }
     const repairType =
       selected === "scrub" ? { scrub: scrubCmd } : selected;
+    const nodeLabel = node === "*" ? "all nodes" : node.slice(0, 16);
     if (
       !window.confirm(
-        `Launch "${selected}" repair on all nodes? This runs a background maintenance task.`
+        `Launch "${selected}" repair on ${nodeLabel}? This runs a background maintenance task.`
       )
     )
       return;
     try {
-      const res = await launch.mutateAsync({ node: "*", repairType });
+      const res = await launch.mutateAsync({ node, repairType });
       const failed = Object.keys(res.error || {}).length;
       const ok = Object.keys(res.success || {}).length;
       if (failed > 0) toast.error(`Repair: ${ok} ok, ${failed} failed`);
@@ -53,6 +58,21 @@ const RepairCard = () => {
       </div>
 
       <div className="mt-4 flex flex-wrap items-end gap-2">
+        <div className="min-w-[160px]">
+          <label className="text-xs text-base-content/60 block mb-1">Node</label>
+          <select
+            value={node}
+            onChange={(e) => setNode(e.target.value)}
+            className="w-full h-9 px-2 rounded-gw-sm border border-hairline bg-base-200 text-sm"
+          >
+            <option value="*">All nodes</option>
+            {nodes.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.hostname || n.shortId} {n.zone ? `(${n.zone})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="flex-1 min-w-[180px]">
           <label className="text-xs text-base-content/60 block mb-1">Repair type</label>
           <select
