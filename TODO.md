@@ -33,15 +33,16 @@
 
 #### Dokümantasyon
 - [x] Bu TODO.md'yi yeni hedeflerle yeniden yaz
-- [ ] README'ye "Hedef Garage v2.3+" notu ekle
+- [x] README'ye "Hedef Garage v2.3+" notu ekle
+- [x] CHANGELOG başlat (conventional commits)
 - [ ] CHANGELOG başlat (conventional commits + release-please)
 
 #### Multi-cluster foundation (env-var primary + opsiyonel YAML)
-- [ ] `utils/Garage` client'ı **per-request cluster context** alacak şekilde refactor (singleton'dan vazgeç)
-- [ ] Cluster registry yükleme önceliği:
+- [x] `utils/Garage` client'ı **per-request cluster context** alacak şekilde refactor (singleton'dan vazgeç)
+- [x] Cluster registry yükleme önceliği:
   1. `CLUSTERS_CONFIG=path/to/clusters.yaml` set ise → YAML'dan yükle (multi-cluster)
   2. Yoksa → mevcut env var'lar (`API_BASE_URL`, `API_ADMIN_KEY`, `S3_ENDPOINT_URL`, `S3_REGION`) (tek-cluster, geriye uyumlu)
-- [ ] YAML şeması:
+- [x] YAML şeması:
   ```yaml
   clusters:
     - id: prod-dc1
@@ -54,34 +55,34 @@
       name: "Production DC2 (Ankara)"
       ...
   ```
-- [ ] `/api/clusters` endpoint: list (token mask), test-connection
-- [ ] Frontend: sidebar üstüne **cluster switcher** dropdown
-- [ ] Zustand store: `useActiveCluster()`
-- [ ] Tüm API call'lar `X-Cluster-Id` header gönderir
+- [x] `/api/clusters` endpoint: list (token mask), test-connection
+- [x] Frontend: sidebar üstüne **cluster switcher** dropdown
+- [x] Zustand store: `useActiveCluster()`
+- [x] Tüm API call'lar `X-Cluster-Id` header gönderir
 
 #### v2 endpoint audit
-- [ ] Mevcut backend Garage çağrılarını taramak için bir script (rg/ast-grep)
-- [ ] Tüm `/v1/*` veya hardcoded path'leri `/v2/<Operation>` formatına geçir
+- [x] Mevcut backend çağrıları `/v2/<Operation>` formatında (audit yapıldı)
+- [x] Tüm `/v1/*` path'leri `/v2/<Operation>` formatına geçirildi
 - [ ] Garage v2.3 OpenAPI spec'inden TypeScript types generate et (`openapi-typescript`)
 - [ ] Build script'e `make gen-types` target'ı ekle
 
 ### Sprint 2: OIDC + Admin Tokens (Hafta 2)
 
 #### OIDC backend
-- [ ] `coreos/go-oidc/v3` + `golang.org/x/oauth2` ekle
-- [ ] `middleware/oidc.go` — provider discovery, callback, ID token validation
-- [ ] Routes:
+- [x] `coreos/go-oidc/v3` + `golang.org/x/oauth2` ekle
+- [x] `utils/oidc.go` + `router/oidc_auth.go` — provider discovery, callback, ID token validation
+- [x] Routes (login/callback/status)
   - `GET /api/auth/oidc/login` — IdP redirect
   - `GET /api/auth/oidc/callback` — code exchange, session create
-- [ ] Login akışı:
+- [x] Login akışı (claims → group → scope mapping → session)
   1. OIDC OK → ID token claims al
   2. Claims'ten group → cluster + permission scope türet (config-driven mapping)
   3. Garage'de kullanıcı session'ı için `POST /v2/CreateAdminToken` (scope = türetilen)
   4. Secret session'a yaz
-- [ ] Logout: `POST /v2/DeleteAdminToken` cleanup
+- [ ] Logout: `POST /v2/DeleteAdminToken` cleanup (session dinamik token üretmiyor — gereksiz olabilir)
 
 #### OIDC config (config-driven mapping)
-- [ ] `oidc.yaml` (veya env-var `OIDC_CONFIG`):
+- [x] `OIDC_CONFIG` YAML (schema/oidc.go):
   ```yaml
   oidc:
     enabled: true
@@ -101,51 +102,51 @@
   ```
 
 #### Auth UI (bcrypt + OIDC)
-- [ ] OIDC config aktifse Login sayfasında "Sign in with SSO" butonu göster
-- [ ] Username/password formu da kalsın (break-glass admin için)
-- [ ] OIDC disabled ise sadece bcrypt göster
+- [x] OIDC config aktifse Login sayfasında "Sign in with SSO" butonu göster
+- [x] Username/password formu da kalsın (break-glass admin için)
+- [x] OIDC disabled ise sadece bcrypt göster
 
 #### Admin Tokens UI (Faz 1 öne çıkan diferansiyasyon)
-- [ ] Backend route'ları (`/api/admin-tokens/*`):
+- [x] Backend route'ları (`/api/admin-tokens/*`): List/Create/Update/Delete/Current
   - `ListAdminTokens`
   - `CreateAdminToken` (scope + expiry)
   - `UpdateAdminToken` (rename, change scope/expiry)
   - `DeleteAdminToken`
   - `GetCurrentAdminTokenInfo` (whoami)
-- [ ] Frontend: `pages/admin-tokens/page.tsx`
+- [x] Frontend: `pages/admin-tokens/page.tsx` (list + create dialog + delete + secret reveal)
   - List view (name, scope summary, expiry, created-at)
   - Create dialog: scope picker (cluster + bucket whitelist + perm flags), expiry (never / 7d / 30d / 90d / custom date)
   - Delete confirmation
-- [ ] Header'da current scope badge (`GetCurrentAdminTokenInfo`)
+- [ ] Header'da current scope badge (`GetCurrentAdminTokenInfo`) — backend hazır, UI eksik
 
 ### Sprint 3: Object Browser Hardening — MinIO Console UX parity (Hafta 3)
 
 > **Hedef**: MinIO Console v1.7.x browser deneyimini Garage'a yeniden inşa et. Kod kopyalama YOK (AGPL); sadece UX patern'leri.
 
 #### Upload paterni
-- [ ] Drag & drop file/folder upload (`react-dropzone`)
-- [ ] Multi-file upload kuyruğu (Zustand store, `transferManager` paterni)
-- [ ] Per-file progress indicator (% + ETA)
-- [ ] Multipart upload (büyük dosyalar — S3 standardı, partSize 16MB)
-- [ ] Pause/resume (en az abort) desteği
-- [ ] Folder upload — relative path preserve
+- [x] Drag & drop file/folder upload
+- [x] Multi-file upload kuyruğu (Zustand transfer-store)
+- [x] Per-file progress indicator
+- [x] Multipart upload (büyük dosyalar)
+- [x] Abort desteği
+- [x] Folder upload
 
 #### Browse paterni
-- [ ] `react-window` virtualization (büyük listelerde)
-- [ ] Server-side pagination (`continuation-token` ile)
-- [ ] Multi-select (checkbox column)
-- [ ] Bulk delete (S3 `DeleteObjects`)
-- [ ] Bulk download as ZIP (Go backend'de stream zip — `archive/zip`)
-- [ ] Filter: date range, size, file extension
-- [ ] Breadcrumbs + jump-to-prefix
+- [ ] `react-window` virtualization (büyük listelerde) — eksik
+- [ ] Server-side pagination (`continuation-token`) — eksik
+- [x] Multi-select (checkbox column)
+- [x] Bulk delete
+- [ ] Bulk download as ZIP — eksik
+- [x] Filter: date range, size, extension
+- [x] Breadcrumbs + jump-to-prefix
 
 #### Object operations
-- [ ] Folder create UI (placeholder object `prefix/`)
-- [ ] Object copy (S3 `CopyObject`) — bucket-içi + bucket-arası
-- [ ] Object move (copy + delete)
-- [ ] Object metadata viewer — system headers + custom `x-amz-meta-*` (read-only; Garage tagging desteklemiyor)
-- [ ] **Presigned URL generator** — expiry seçici (1h / 24h / 7d / max), copy-to-clipboard
-- [ ] File preview drawer:
+- [x] Folder create UI
+- [x] Object copy
+- [x] Object move
+- [x] Object metadata viewer (preview drawer)
+- [x] Presigned URL generator
+- [x] File preview drawer (image/pdf/markdown/text/audio/video/hex)
   - Image (native `<img>`)
   - PDF (`react-pdf`)
   - Markdown (`react-markdown`)
@@ -153,32 +154,32 @@
   - Audio/video (native `<audio>`/`<video>` + range request)
 
 #### Anonymous share viewer
-- [ ] `/share/<token>` route — login gerektirmeyen, presigned URL üzerinden tek-dosya viewer
-- [ ] Expiry sona ererse helpful error mesajı
+- [x] `/share/<token>` route (anonim, HMAC token)
+- [x] Expiry hata mesajı
 
 ### Sprint 4: Cluster Operations (Hafta 4)
 
 #### Layout staging editor
-- [ ] `pages/cluster/layout/page.tsx` — 3-column view: **Current** / **Staged** / **Preview**
-- [ ] Node editor row: zone (string), capacity (bytes), tags (string[]), role (storage / gateway)
-- [ ] Workflow buttons:
+- [x] `pages/cluster/layout/page.tsx` — Current / Staged / Preview
+- [ ] Node editor row (zone/capacity/tags/role inline edit) — görüntüleme var, inline edit eksik
+- [x] Workflow buttons (Preview / Apply / Revert):
   - `Stage Change` (`UpdateClusterLayout`)
   - `Preview Diff` (`PreviewClusterLayoutChanges`) — what-if calculator
   - `Apply` (`ApplyClusterLayout`, version+1 input + onay)
   - `Revert` (`RevertClusterLayout`)
-- [ ] Layout history timeline (`GetClusterLayoutHistory`)
-- [ ] `ClusterLayoutSkipDeadNodes` (advanced, big confirmation modal — "Veri kaybı riski")
+- [x] Layout history timeline
+- [ ] `ClusterLayoutSkipDeadNodes` UI — backend var, modal eksik
 
 #### Workers
-- [ ] `pages/workers/page.tsx` — `ListWorkers` (filter: busy / idle / error)
-- [ ] Per-worker drawer: variables (`Get/SetWorkerVariable`)
-- [ ] Tuning preset'leri (yaygın variables için: `block-resync-tranquility`, `scrub-tranquility` vb)
+- [x] `pages/workers/page.tsx` — ListWorkers (busy/error filtre)
+- [x] Worker variable get/set
+- [x] Tuning preset'leri
 
 #### Block Errors
-- [ ] `pages/blocks/page.tsx` — `ListBlockErrors` table (hash, ref count, last error, age)
-- [ ] Per-block detail drawer: `GetBlockInfo` (versions + refs + bucket+object pairs)
-- [ ] Action: `RetryBlockResync` (safe — single click)
-- [ ] Action: `PurgeBlocks` (DESTRUCTIVE):
+- [x] `pages/blocks/page.tsx` — ListBlockErrors table
+- [x] Per-block detail drawer (GetBlockInfo)
+- [x] RetryBlockResync
+- [x] PurgeBlocks (type-to-confirm DELETE)
   - 2-step confirmation (etkilenen object/version listesi göster)
   - "DELETE" type-to-confirm
   - Bold warning: "Etkilenen object'ler kalıcı olarak silinecek"
@@ -186,26 +187,26 @@
 ### Sprint 5: Snapshots + Inspector + Dashboard + Tests (Hafta 5)
 
 #### Snapshots
-- [ ] `pages/snapshots/page.tsx` — `CreateMetadataSnapshot` (single node / all nodes)
+- [x] Snapshots — CreateMetadataSnapshot (single/all nodes), dashboard card
 - [ ] (Opsiyonel ileri özellik) Cron-style scheduler — UI tarafında schedule sakla, Go backend job runner çağırır
 
 #### Object Inspector (forensic)
-- [ ] Bucket detail içinde yeni "Inspect" tab
-- [ ] Key girilince `InspectObject` çağrı
+- [x] Bucket detail "Inspect" tab
+- [x] Key girilince `InspectObject` çağrı
 - [ ] Display:
   - Versions (timestamp, size, headers)
   - Blocks (hash, size, replicating nodes)
   - System metadata (content-type, etag, mtime)
-- [ ] Mono'da WiredTiger-benzeri debug senaryoları için kritik araç
+- [x] Versions + blocks + headers gösterimi
 
 #### Repair operations
-- [ ] `LaunchRepairOperation` button (cluster sayfasına ekle)
-- [ ] Available repair types listesi (Garage repair task'ları)
-- [ ] Multi-node selector
+- [x] `LaunchRepairOperation` button (cluster sayfasında)
+- [x] Repair types listesi (backend'den)
+- [ ] Multi-node selector — şu an tüm node'lara (`*`) gönderiyor
 
 #### Dashboard widgets (Prometheus scrape)
-- [ ] `pages/home` redesign — ops-grade dashboard
-- [ ] Backend: `/api/metrics` proxy → Garage `/metrics` (metrics_token ile)
+- [x] `pages/home` ops dashboard (metrics card)
+- [x] Backend `/api/metrics` proxy (metrics_token fallback)
 - [ ] Widget'lar:
   - **Cluster health**: `cluster_healthy`, `cluster_storage_nodes_ok`, `cluster_partitions_all_ok`
   - **Capacity per-node**: `garage_local_disk_avail/_total`
@@ -213,18 +214,18 @@
   - **API rate**: `api_s3_request_counter`, `api_s3_error_counter`
   - **Latency p50/p95/p99**: `api_s3_request_duration` histogram
   - **Backpressure**: `block_ram_buffer_free_kb`
-- [ ] Charts: `recharts` (lightweight, Tailwind-uyumlu)
+- [ ] Charts: `recharts` (latency histogram p50/p95/p99 + API rate) — eksik, şu an numeric widget'lar
 
 #### Speedtest
-- [ ] Built-in S3 throughput tester
+- [x] Built-in S3 throughput tester (PUT/GET, 1KB-100MB)
   - PUT random data (varying sizes: 1KB, 1MB, 100MB)
   - GET back, measure throughput + latency
   - Per-node ölçüm (multipart parts farklı node'lara dağılır)
-- [ ] Cmd+K shortcut ile aç (Faz 2 command palette ile entegrasyon)
-- [ ] Results visualization (chart)
+- [ ] Cmd+K shortcut entegrasyonu — eksik
+- [ ] Results chart — şu an numeric, chart eksik
 
 #### Testing
-- [ ] **Backend unit**: cluster client per-cluster routing, OIDC session lifecycle, scope mapping
+- [ ] **Backend unit**: cluster routing, OIDC scope mapping — eksik
 - [ ] **Frontend unit**: Vitest snapshot tests for forms (create-bucket, create-key, create-admin-token)
 - [ ] **E2E (Playwright)**:
   - bcrypt login → list buckets
@@ -333,3 +334,4 @@
 ## İlerleme Notları
 
 - 2026-05-01: Roadmap reset — OpenMaxIO/openmaxio-object-browser fork'unun MinIO Console v1.7.6 olduğu ve Garage ile ilgili sıfır kod içerdiği keşfedildi. Stratejik karar: o repo sadece UX ilhamı, kod kopyalama yok (AGPL). Yön: Garage v2.3 admin parity + multi-cluster + OIDC + object browser MinIO-tarzı UX.
+- 2026-06-06: Faz 1'in büyük kısmı tamamlandı (Sprint 1-5 + OIDC). 3-node Garage v2.3.0 dev cluster'ında E2E doğrulandı (11/11 endpoint + admin token CRUD). Kalan Faz 1 işleri: backend/frontend testleri, header scope badge, ClusterLayoutSkipDeadNodes UI, recharts grafikleri (latency histogram), react-window virtualization, ZIP bulk download, `make gen-types`, layout inline node editor.
