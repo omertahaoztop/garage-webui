@@ -13,8 +13,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// version is injected at build time via -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
 	// Initialize app
+	log.Printf("garage-webui %s starting", version)
 	godotenv.Load()
 	utils.InitCacheManager()
 	sessionMgr := utils.InitSessionManager()

@@ -1,0 +1,12 @@
+# Default owner for everything in the repo.
+* @omertahaoztop
+
+# Security-critical areas require owner review.
+/backend/middleware/   @omertahaoztop
+/backend/router/auth.go        @omertahaoztop
+/backend/router/authz.go       @omertahaoztop
+/backend/router/oidc_auth.go   @omertahaoztop
+/backend/utils/oidc.go         @omertahaoztop
+/.github/                @omertahaoztop
+/LICENSE                 @omertahaoztop
+/SECURITY.md             @omertahaoztop
