@@ -52,3 +52,5 @@ NOTES.md
 .playwright-mcp/
 AGENTS.md
 local_cache/
+test-results/
+playwright-report/
