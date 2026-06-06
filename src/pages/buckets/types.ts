@@ -16,6 +16,8 @@ export type Bucket = {
   unfinishedMultipartUploadParts: number;
   unfinishedMultipartUploadBytes: number;
   quotas: Quotas;
+  corsRules?: CorsRule[] | null;
+  lifecycleRules?: LifecycleRule[] | null;
 };
 
 export type LocalAlias = {
@@ -44,4 +46,30 @@ export type WebsiteConfig = {
 export type Quotas = {
   maxSize: null;
   maxObjects: null;
+};
+
+export type CorsRule = {
+  ID?: string | null;
+  AllowedOrigin: string[];
+  AllowedMethod: string[];
+  AllowedHeader?: string[];
+  ExposeHeader?: string[];
+  MaxAgeSeconds?: number | null;
+};
+
+export type LifecycleRule = {
+  ID?: string | null;
+  Status: "Enabled" | "Disabled";
+  Filter?: {
+    Prefix?: string | null;
+    ObjectSizeGreaterThan?: number | null;
+    ObjectSizeLessThan?: number | null;
+  } | null;
+  Expiration?: {
+    Days?: number | null;
+    Date?: string | null;
+  } | null;
+  AbortIncompleteMultipartUpload?: {
+    DaysAfterInitiation: number;
+  } | null;
 };

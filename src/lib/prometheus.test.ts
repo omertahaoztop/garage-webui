@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePrometheus, sumMetric, firstMetric, expiryToISO } from "./prometheus";
+import { parsePrometheus, sumMetric, firstMetric, expiryToISO, histogramQuantile } from "./prometheus";
 
 describe("parsePrometheus", () => {
   it("parses bare metrics", () => {
@@ -72,5 +72,46 @@ describe("expiryToISO", () => {
     const r = expiryToISO("2030-01-15");
     expect(r.neverExpires).toBe(false);
     expect(r.expiration).toContain("2030-01-15");
+  });
+});
+
+describe("histogramQuantile", () => {
+  const text = [
+    'api_s3_request_duration_bucket{le="0.1"} 50',
+    'api_s3_request_duration_bucket{le="0.5"} 90',
+    'api_s3_request_duration_bucket{le="1"} 99',
+    'api_s3_request_duration_bucket{le="+Inf"} 100',
+  ].join("\n");
+
+  it("p50 falls in the 0.1-0.5 bucket", () => {
+    const m = parsePrometheus(text);
+    const p50 = histogramQuantile(m, "api_s3_request_duration", 0.5)!;
+    expect(p50).toBeGreaterThanOrEqual(0.1);
+    expect(p50).toBeLessThanOrEqual(0.5);
+  });
+
+  it("p99 falls in the 0.5-1 bucket", () => {
+    const m = parsePrometheus(text);
+    const p99 = histogramQuantile(m, "api_s3_request_duration", 0.99)!;
+    expect(p99).toBeGreaterThanOrEqual(0.5);
+    expect(p99).toBeLessThanOrEqual(1);
+  });
+
+  it("returns undefined when no buckets exist", () => {
+    const m = parsePrometheus("cluster_healthy 1");
+    expect(histogramQuantile(m, "api_s3_request_duration", 0.5)).toBeUndefined();
+  });
+
+  it("aggregates buckets across label sets", () => {
+    const multi = [
+      'd_bucket{api_endpoint="A",le="1"} 10',
+      'd_bucket{api_endpoint="A",le="+Inf"} 10',
+      'd_bucket{api_endpoint="B",le="1"} 10',
+      'd_bucket{api_endpoint="B",le="+Inf"} 10',
+    ].join("\n");
+    const m = parsePrometheus(multi);
+    const p50 = histogramQuantile(m, "d", 0.5)!;
+    expect(p50).toBeGreaterThan(0);
+    expect(p50).toBeLessThanOrEqual(1);
   });
 });

@@ -5,12 +5,13 @@ import {
   parsePrometheus,
   sumMetric,
   firstMetric,
+  histogramQuantile,
   type ParsedMetrics,
   type MetricSample,
 } from "@/lib/prometheus";
 
 export type { ParsedMetrics, MetricSample };
-export { sumMetric, firstMetric };
+export { sumMetric, firstMetric, histogramQuantile };
 
 const fetchMetrics = async (): Promise<ParsedMetrics> => {
   const headers: Record<string, string> = {};

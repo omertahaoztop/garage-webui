@@ -4,6 +4,7 @@ import StatsCard from "./components/stats-card";
 import SnapshotsCard from "./components/snapshots-card";
 import MetricsCard from "./components/metrics-card";
 import SpeedtestCard from "./components/speedtest-card";
+import ChartsCard from "./components/charts-card";
 import {
   Database,
   DatabaseZap,
@@ -125,6 +126,10 @@ const HomePage = () => {
 
       <section className="mt-6">
         <MetricsCard />
+      </section>
+
+      <section className="mt-6">
+        <ChartsCard />
       </section>
 
       <section className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">

@@ -65,6 +65,53 @@ export const firstMetric = (
   name: string
 ): number | undefined => m?.byName.get(name)?.[0]?.value;
 
+// histogramQuantile approximates a Prometheus histogram quantile from the
+// cumulative _bucket{le="..."} samples of `metric`, optionally filtered by an
+// extra label match. Linear interpolation within the matching bucket, same as
+// Prometheus' histogram_quantile(). Returns seconds, or undefined if no data.
+export const histogramQuantile = (
+  m: ParsedMetrics | undefined,
+  metric: string,
+  q: number,
+  match?: (labels: Record<string, string>) => boolean
+): number | undefined => {
+  if (!m) return undefined;
+  const buckets = (m.byName.get(metric + "_bucket") ?? [])
+    .filter((s) => (match ? match(s.labels) : true))
+    .map((s) => ({ le: s.labels.le, count: s.value }))
+    .filter((b) => b.le !== undefined);
+  if (buckets.length === 0) return undefined;
+
+  // Aggregate counts per le across all matching label sets (sum series).
+  const byLe = new Map<string, number>();
+  for (const b of buckets) {
+    byLe.set(b.le, (byLe.get(b.le) ?? 0) + b.count);
+  }
+  const ordered = [...byLe.entries()]
+    .map(([le, count]) => ({ le: le === "+Inf" ? Infinity : parseFloat(le), count }))
+    .sort((a, b) => a.le - b.le);
+  if (ordered.length === 0) return undefined;
+
+  const total = ordered[ordered.length - 1].count;
+  if (total <= 0) return undefined;
+  const rank = q * total;
+
+  let prevLe = 0;
+  let prevCount = 0;
+  for (const b of ordered) {
+    if (b.count >= rank) {
+      if (b.le === Infinity) return prevLe;
+      const bucketCount = b.count - prevCount;
+      if (bucketCount <= 0) return b.le;
+      // Linear interpolation within [prevLe, le].
+      return prevLe + ((rank - prevCount) / bucketCount) * (b.le - prevLe);
+    }
+    prevLe = b.le === Infinity ? prevLe : b.le;
+    prevCount = b.count;
+  }
+  return prevLe;
+};
+
 // expiryToISO maps an admin-token expiry preset to an ISO timestamp.
 export const expiryToISO = (
   preset: string

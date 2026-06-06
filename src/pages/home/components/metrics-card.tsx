@@ -31,6 +31,16 @@ const MetricsCard = () => {
     const s3Requests = sumMetric(data, "api_s3_request_counter");
     const s3Errors = sumMetric(data, "api_s3_error_counter");
 
+    // Version skew: garage_build_info{version} across nodes. More than one
+    // distinct version => a rolling upgrade is in progress or stuck.
+    const versions = [
+      ...new Set(
+        (data.byName.get("garage_build_info") ?? [])
+          .map((s) => s.labels.version)
+          .filter(Boolean)
+      ),
+    ];
+
     return {
       healthy,
       available,
@@ -45,6 +55,7 @@ const MetricsCard = () => {
       diskTotal,
       s3Requests,
       s3Errors,
+      versions,
     };
   }, [data]);
 
@@ -138,6 +149,19 @@ const MetricsCard = () => {
                 {((stats.s3Errors / stats.s3Requests) * 100).toFixed(2)}%
               </span>{" "}
               ({stats.s3Errors.toLocaleString()} errors)
+            </p>
+          )}
+
+          {stats.versions.length > 1 && (
+            <div className="mt-3 rounded-gw-sm border border-warning/40 bg-warning/5 px-3 py-2 text-xs text-warning flex items-center gap-2">
+              <AlertTriangle size={14} />
+              Version skew: nodes are running {stats.versions.join(", ")}. A rolling
+              upgrade is in progress or stuck — finish it before changing layout.
+            </div>
+          )}
+          {stats.versions.length === 1 && (
+            <p className="text-xs text-base-content/40 mt-2">
+              Garage version: {stats.versions[0]} (all nodes consistent)
             </p>
           )}
         </>

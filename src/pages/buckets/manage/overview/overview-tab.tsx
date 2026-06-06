@@ -4,10 +4,14 @@ import { readableBytes } from "@/lib/utils";
 import WebsiteAccessSection from "./overview-website-access";
 import AliasesSection from "./overview-aliases";
 import QuotaSection from "./overview-quota";
+import CorsSection from "./overview-cors";
+import LifecycleSection from "./overview-lifecycle";
+import { useAuth } from "@/hooks/useAuth";
 import { useBucketContext } from "../context";
 
 const OverviewTab = () => {
   const { bucket: data } = useBucketContext();
+  const { isAdmin } = useAuth();
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8 items-start">
@@ -42,6 +46,14 @@ const OverviewTab = () => {
           </div>
         </div>
       </Card>
+
+      {isAdmin && (
+        <Card className="card-body gap-0 items-start order-3 md:col-span-2">
+          <Card.Title>Configuration</Card.Title>
+          <CorsSection />
+          <LifecycleSection />
+        </Card>
+      )}
     </div>
   );
 };
