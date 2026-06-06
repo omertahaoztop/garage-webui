@@ -477,7 +477,7 @@ func (b *Browse) PresignUrl(w http.ResponseWriter, r *http.Request) {
 		req.Expires = 604800
 	}
 
-	client, err := getS3Client(r, bucket)
+	client, err := getS3PresignClient(r, bucket)
 	if err != nil {
 		utils.ResponseError(w, err)
 		return
@@ -908,19 +908,37 @@ func getBucketCredentials(cluster *utils.Cluster, bucket string) (aws.Credential
 	return credential, nil
 }
 
-// getS3Client builds an S3 client targeting the cluster bound to the request.
+// getS3Client builds an S3 client targeting the cluster's INTERNAL S3
+// endpoint (used for all server-side proxying: list, get, put, copy, delete).
 func getS3Client(r *http.Request, bucket string) (*s3.Client, error) {
 	cluster := utils.GetCluster(r)
 	if cluster == nil {
 		return nil, fmt.Errorf("no cluster selected")
 	}
+	return buildS3Client(cluster, bucket, cluster.GetS3Endpoint())
+}
 
+// getS3PresignClient builds an S3 client signed against the PUBLIC S3 endpoint
+// (e.g. https://garage.mono.tr) so the resulting presigned URLs are reachable
+// from a user's browser through the edge load balancer, not the internal
+// per-node address. Falls back to the internal endpoint when no public
+// endpoint is configured.
+func getS3PresignClient(r *http.Request, bucket string) (*s3.Client, error) {
+	cluster := utils.GetCluster(r)
+	if cluster == nil {
+		return nil, fmt.Errorf("no cluster selected")
+	}
+	return buildS3Client(cluster, bucket, cluster.GetS3PublicEndpoint())
+}
+
+// buildS3Client constructs an S3 client for `bucket` against `endpoint` using
+// the bucket's resolved read+write credentials.
+func buildS3Client(cluster *utils.Cluster, bucket, endpoint string) (*s3.Client, error) {
 	creds, err := getBucketCredentials(cluster, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get credentials for bucket %s: %w", bucket, err)
 	}
 
-	endpoint := cluster.GetS3Endpoint()
 	disableHTTPS := !strings.HasPrefix(endpoint, "https://")
 
 	awsConfig := aws.Config{

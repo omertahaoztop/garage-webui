@@ -30,7 +30,13 @@ type Cluster struct {
 	AdminURL   string
 	AdminToken string // secret — never JSON-serialised
 	S3Endpoint string
-	S3Region   string
+	// S3PublicEndpoint is the browser-reachable S3 host used to SIGN presigned
+	// URLs (e.g. https://garage.mono.tr). In a sidecar + edge-LB topology the
+	// internal S3Endpoint (http://garage1:3900) is not reachable from a user's
+	// browser, so presigned links must be signed against the public host.
+	// Empty => fall back to S3Endpoint (single-host / dev).
+	S3PublicEndpoint string
+	S3Region         string
 	// TomlConfig is only populated when the cluster was bootstrapped from a
 	// local /etc/garage.toml in single-cluster mode. Multi-cluster YAML mode
 	// leaves this zero-valued; the /api/admin/config endpoint will degrade
@@ -38,16 +44,26 @@ type Cluster struct {
 	TomlConfig schema.Config
 }
 
+// GetS3PublicEndpoint returns the browser-reachable S3 endpoint for signing
+// presigned URLs, falling back to the internal endpoint when unset.
+func (c *Cluster) GetS3PublicEndpoint() string {
+	if c.S3PublicEndpoint != "" {
+		return c.S3PublicEndpoint
+	}
+	return c.S3Endpoint
+}
+
 // Public returns a redacted view safe for the API.
 func (c *Cluster) Public(isDefault bool) schema.ClusterPublic {
 	return schema.ClusterPublic{
-		ID:         c.ID,
-		Name:       c.Name,
-		AdminURL:   c.AdminURL,
-		S3Endpoint: c.S3Endpoint,
-		S3Region:   c.S3Region,
-		IsDefault:  isDefault,
-		HasToken:   c.AdminToken != "",
+		ID:               c.ID,
+		Name:             c.Name,
+		AdminURL:         c.AdminURL,
+		S3Endpoint:       c.S3Endpoint,
+		S3PublicEndpoint: c.GetS3PublicEndpoint(),
+		S3Region:         c.S3Region,
+		IsDefault:        isDefault,
+		HasToken:         c.AdminToken != "",
 	}
 }
 
@@ -234,12 +250,13 @@ func loadFromYAML(path string) error {
 		}
 
 		cl := &Cluster{
-			ID:         c.ID,
-			Name:       name,
-			AdminURL:   strings.TrimRight(c.AdminURL, "/"),
-			AdminToken: token,
-			S3Endpoint: strings.TrimRight(c.S3Endpoint, "/"),
-			S3Region:   region,
+			ID:               c.ID,
+			Name:             name,
+			AdminURL:         strings.TrimRight(c.AdminURL, "/"),
+			AdminToken:       token,
+			S3Endpoint:       strings.TrimRight(c.S3Endpoint, "/"),
+			S3PublicEndpoint: strings.TrimRight(c.S3PublicEndpoint, "/"),
+			S3Region:         region,
 		}
 		Clusters.clusters = append(Clusters.clusters, cl)
 		Clusters.byID[c.ID] = cl
@@ -261,6 +278,7 @@ func loadSingleClusterMode() error {
 	adminURL := os.Getenv("API_BASE_URL")
 	adminToken := os.Getenv("API_ADMIN_KEY")
 	s3Endpoint := os.Getenv("S3_ENDPOINT_URL")
+	s3PublicEndpoint := os.Getenv("S3_PUBLIC_ENDPOINT_URL")
 	s3Region := GetEnv("S3_REGION", "")
 
 	// Optional: try to load /etc/garage.toml for backward-compatible single
@@ -296,13 +314,14 @@ func loadSingleClusterMode() error {
 	}
 
 	cl := &Cluster{
-		ID:         "default",
-		Name:       "Default",
-		AdminURL:   strings.TrimRight(adminURL, "/"),
-		AdminToken: adminToken,
-		S3Endpoint: strings.TrimRight(s3Endpoint, "/"),
-		S3Region:   s3Region,
-		TomlConfig: tomlCfg,
+		ID:               "default",
+		Name:             "Default",
+		AdminURL:         strings.TrimRight(adminURL, "/"),
+		AdminToken:       adminToken,
+		S3Endpoint:       strings.TrimRight(s3Endpoint, "/"),
+		S3PublicEndpoint: strings.TrimRight(s3PublicEndpoint, "/"),
+		S3Region:         s3Region,
+		TomlConfig:       tomlCfg,
 	}
 	Clusters.clusters = append(Clusters.clusters, cl)
 	Clusters.byID[cl.ID] = cl
