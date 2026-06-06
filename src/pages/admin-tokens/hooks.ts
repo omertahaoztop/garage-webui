@@ -60,15 +60,5 @@ export const useDeleteToken = () => {
   });
 };
 
-// Expiry presets → ISO timestamp (or null for never).
-export const expiryToISO = (preset: string): { expiration: string | null; neverExpires: boolean } => {
-  if (preset === "never") return { expiration: null, neverExpires: true };
-  const days = { "7d": 7, "30d": 30, "90d": 90 }[preset];
-  if (days) {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    return { expiration: d.toISOString(), neverExpires: false };
-  }
-  // custom: preset is already an ISO date string (YYYY-MM-DD)
-  return { expiration: new Date(preset).toISOString(), neverExpires: false };
-};
+// Expiry preset → ISO timestamp helper (pure, unit-tested in lib/prometheus).
+export { expiryToISO } from "@/lib/prometheus";
