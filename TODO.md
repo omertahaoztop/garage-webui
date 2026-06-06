@@ -117,7 +117,7 @@
   - List view (name, scope summary, expiry, created-at)
   - Create dialog: scope picker (cluster + bucket whitelist + perm flags), expiry (never / 7d / 30d / 90d / custom date)
   - Delete confirmation
-- [ ] Header'da current scope badge (`GetCurrentAdminTokenInfo`) — backend hazır, UI eksik
+- [x] Header'da current scope badge (`GetCurrentAdminTokenInfo`)
 
 ### Sprint 3: Object Browser Hardening — MinIO Console UX parity (Hafta 3)
 
@@ -161,14 +161,14 @@
 
 #### Layout staging editor
 - [x] `pages/cluster/layout/page.tsx` — Current / Staged / Preview
-- [ ] Node editor row (zone/capacity/tags/role inline edit) — görüntüleme var, inline edit eksik
+- [x] Node editor row (zone/capacity/tags inline edit + stage/remove)
 - [x] Workflow buttons (Preview / Apply / Revert):
   - `Stage Change` (`UpdateClusterLayout`)
   - `Preview Diff` (`PreviewClusterLayoutChanges`) — what-if calculator
   - `Apply` (`ApplyClusterLayout`, version+1 input + onay)
   - `Revert` (`RevertClusterLayout`)
 - [x] Layout history timeline
-- [ ] `ClusterLayoutSkipDeadNodes` UI — backend var, modal eksik
+- [x] `ClusterLayoutSkipDeadNodes` UI (danger zone + type-to-confirm modal)
 
 #### Workers
 - [x] `pages/workers/page.tsx` — ListWorkers (busy/error filtre)
@@ -202,19 +202,19 @@
 #### Repair operations
 - [x] `LaunchRepairOperation` button (cluster sayfasında)
 - [x] Repair types listesi (backend'den)
-- [ ] Multi-node selector — şu an tüm node'lara (`*`) gönderiyor
+- [x] Multi-node selector (all nodes / per-node dropdown)
 
 #### Dashboard widgets (Prometheus scrape)
 - [x] `pages/home` ops dashboard (metrics card)
 - [x] Backend `/api/metrics` proxy (metrics_token fallback)
-- [ ] Widget'lar:
+- [x] Widget'lar (health, capacity, resync-errored, API rate, latency, backpressure):
   - **Cluster health**: `cluster_healthy`, `cluster_storage_nodes_ok`, `cluster_partitions_all_ok`
   - **Capacity per-node**: `garage_local_disk_avail/_total`
   - **Block resync errored** (kırmızı flag, healthy=0): `block_resync_errored_blocks`
   - **API rate**: `api_s3_request_counter`, `api_s3_error_counter`
   - **Latency p50/p95/p99**: `api_s3_request_duration` histogram
   - **Backpressure**: `block_ram_buffer_free_kb`
-- [ ] Charts: `recharts` (latency histogram p50/p95/p99 + API rate) — eksik, şu an numeric widget'lar
+- [x] Charts: `recharts` (latency p50/p95/p99 bar + API-rate by endpoint)
 
 #### Speedtest
 - [x] Built-in S3 throughput tester (PUT/GET, 1KB-100MB)
@@ -225,9 +225,9 @@
 - [ ] Results chart — şu an numeric, chart eksik
 
 #### Testing
-- [ ] **Backend unit**: cluster routing, OIDC scope mapping — eksik
-- [ ] **Frontend unit**: Vitest snapshot tests for forms (create-bucket, create-key, create-admin-token)
-- [ ] **E2E (Playwright)**:
+- [x] **Backend unit**: cluster routing, OIDC scope mapping, repair enum, bucket-access authz
+- [x] **Frontend unit**: Vitest (parsePrometheus, expiryToISO, histogramQuantile)
+- [x] **E2E (Playwright)** (dashboard, nav, layout, admin-token CRUD; +13 live security assertions):
   - bcrypt login → list buckets
   - OIDC mock login → list buckets
   - create bucket → upload file → download file → delete
@@ -335,3 +335,5 @@
 
 - 2026-05-01: Roadmap reset — OpenMaxIO/openmaxio-object-browser fork'unun MinIO Console v1.7.6 olduğu ve Garage ile ilgili sıfır kod içerdiği keşfedildi. Stratejik karar: o repo sadece UX ilhamı, kod kopyalama yok (AGPL). Yön: Garage v2.3 admin parity + multi-cluster + OIDC + object browser MinIO-tarzı UX.
 - 2026-06-06: Faz 1'in büyük kısmı tamamlandı (Sprint 1-5 + OIDC). 3-node Garage v2.3.0 dev cluster'ında E2E doğrulandı (11/11 endpoint + admin token CRUD). Kalan Faz 1 işleri: backend/frontend testleri, header scope badge, ClusterLayoutSkipDeadNodes UI, recharts grafikleri (latency histogram), react-window virtualization, ZIP bulk download, `make gen-types`, layout inline node editor.
+- 2026-06-06 (2): Güvenlik sertleştirmesi + P1 özellikler. **Auth modeli MinIO paritesine getirildi**: S3-key kullanıcısı asla cluster-admin olamaz (bucket-owner escalation kaldırıldı), admin yalnızca AUTH_USER_PASS; merkezi assertBucketAccess ile cross-tenant erişim engellendi (inspect/speedtest/browse 403); AUTH_REQUIRED footgun guard + startup uyarısı; admin-tokens/current adminRouter'a taşındı. 13/13 canlı güvenlik testi geçti. **MDC sidecar**: presign URL'leri S3_PUBLIC_ENDPOINT_URL ile public host'a imzalanıyor (CF LB topolojisi). **P1 tamamlandı**: bucket lifecycle/expiration editörü, CORS editörü, quota UI, recharts latency+API-rate grafikleri, version-skew detector. **Düzeltmeler**: okunmayan DaisyUI temaları kaldırıldı (sadece Garage Dark/Light) + stale-theme guard; login formu MinIO-tarzı Access Key/Secret Key etiketlerine sadeleştirildi. Test altyapısı kuruldu: Go unit (utils+router+middleware), Vitest (14 test), Playwright E2E (4 test).
+- NOT: TODO.md'de "YAPILMAYACAKLAR" listesindeki **CORS** ve **bucket lifecycle/expiration** Garage v2.3 UpdateBucket API'sinde destekleniyor; ikisi de implement edildi (liste güncellenmeli).
