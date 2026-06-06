@@ -21,7 +21,7 @@ export const parsePrometheus = (text: string): ParsedMetrics => {
 
     const braceIdx = line.indexOf("{");
     let name: string;
-    let labels: Record<string, string> = {};
+    const labels: Record<string, string> = {};
     let rest: string;
 
     if (braceIdx >= 0) {

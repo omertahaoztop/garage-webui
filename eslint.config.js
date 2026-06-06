@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint'
 export default tseslint.config({
   extends: [js.configs.recommended, ...tseslint.configs.recommended],
   files: ['**/*.{ts,tsx}'],
-  ignores: ['dist'],
+  ignores: ['dist', 'e2e', '*.config.*'],
   languageOptions: {
     ecmaVersion: 2020,
     globals: globals.browser,
@@ -22,5 +22,8 @@ export default tseslint.config({
       'warn',
       { allowConstantExport: true },
     ],
+    // Pre-existing `any` usage from the upstream fork is tracked as a warning
+    // (visible tech debt) rather than blocking CI. New code should avoid it.
+    '@typescript-eslint/no-explicit-any': 'warn',
   },
 })

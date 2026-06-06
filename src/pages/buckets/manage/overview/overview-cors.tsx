@@ -109,7 +109,7 @@ const CorsSection = () => {
                         type="button"
                         onClick={() => {
                           const set = new Set(rule.AllowedMethod ?? []);
-                          on ? set.delete(m) : set.add(m);
+                          if (on) set.delete(m); else set.add(m);
                           const next = rules.map((r, idx) =>
                             idx === i ? { ...r, AllowedMethod: [...set] } : r
                           );

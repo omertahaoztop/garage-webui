@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  docker:
+    name: Multi-arch image -> GHCR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  binaries:
+    name: Release binaries + GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: backend/go.sum
+
+      - name: Build frontend (embedded into binary)
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+          rm -rf backend/ui/dist
+          cp -r dist backend/ui/dist
+
+      - name: Build cross-platform binaries + ZIP bundles
+        working-directory: backend
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          OUT="../dist-bin"
+          mkdir -p "$OUT"
+          # Files shipped inside every archive alongside the binary.
+          EXTRAS="../README.md ../LICENSE ../LICENSE.MIT ../NOTICE ../.env.example"
+
+          package() {
+            local os=$1 arch=$2 ext=$3
+            local name="garage-webui-${VERSION}-${os}-${arch}"
+            local stage="$OUT/$name"
+            echo "Building $os/$arch"
+            mkdir -p "$stage"
+            GOOS=$os GOARCH=$arch CGO_ENABLED=0 \
+              go build -tags prod -ldflags "-s -w -X main.version=${VERSION}" \
+              -o "$stage/garage-webui${ext}" .
+            cp $EXTRAS "$stage/"
+            # ZIP for every platform (assets + binary in one archive).
+            (cd "$OUT" && zip -r -q "${name}.zip" "$name")
+            # tar.gz too for Linux/macOS convenience.
+            if [ "$os" != "windows" ]; then
+              (cd "$OUT" && tar czf "${name}.tar.gz" "$name")
+            fi
+            rm -rf "$stage"
+          }
+
+          package linux amd64 ""
+          package linux arm64 ""
+          package darwin amd64 ""
+          package darwin arm64 ""
+          package windows amd64 ".exe"
+
+      - name: Checksums
+        run: |
+          cd dist-bin
+          sha256sum *.zip *.tar.gz > SHA256SUMS
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist-bin/*.zip
+            dist-bin/*.tar.gz
+            dist-bin/SHA256SUMS
